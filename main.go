@@ -87,13 +87,14 @@ func main() {
 	if len(dirs) == 0 && len(files) == 0 {
 		os.Exit(1)
 	}
+	hasOutput := len(files) > 0
+	showDirHeader := len(dirs) > 1 || len(files) > 0
+
+	drawHeader()
 
 	for _, f := range files {
 		printEntry(f.path, f.info)
 	}
-
-	hasOutput := len(files) > 0
-	showDirHeader := len(dirs) > 1 || len(files) > 0
 
 	for _, d := range dirs {
 		if hasOutput {
@@ -101,7 +102,9 @@ func main() {
 		}
 		if showDirHeader {
 			fmt.Printf("%s:\n", d) // Label directory when multiple sections exist.
+			drawHeader()
 		}
+
 		if err := listDir(d); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
 		}
@@ -163,6 +166,24 @@ func printEntry(s string, info os.FileInfo) {
 	}
 }
 
+func drawHeader() {
+	if !longFlag {
+		return
+	}
+
+	underline := func(s string) string {
+		// underline + string + reset
+		return "\033[4m" + s + "\033[0m"
+	}
+
+	fmt.Printf("%s %s %s %s\n",
+		underline("Permissions"),
+		underline("Size"),
+		underline("Date Modified"),
+		underline("Name"),
+	)
+}
+
 func humanReadable(size int64) string {
 	if size < 1024 {
 		return fmt.Sprintf("%dB", size)
@@ -204,7 +225,7 @@ func classify(m os.FileMode) rune {
 
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
-		return t.Format("Jan _2 15:04")
+		return t.Format("Jan _2 15:04 ")
 	}
-	return t.Format("Jan _2  2006")
+	return t.Format("Jan _2  2006 ")
 }
