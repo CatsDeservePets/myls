@@ -153,11 +153,18 @@ func printEntry(s string, info os.FileInfo) {
 	if suffix := classify(info.Mode()); suffix != 0 {
 		s += string(suffix)
 	}
+
 	if longFlag {
+		var size string
+		if info.IsDir() {
+			size = "-"
+		} else {
+			size = humanReadable(info.Size())
+		}
 		// TODO: calculate alignment
 		fmt.Printf("%s %5s %s %s\n",
 			info.Mode().String(),
-			humanReadable(info.Size()),
+			size,
 			formatTime(info.ModTime()),
 			s,
 		)
