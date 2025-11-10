@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -151,15 +152,37 @@ func printEntry(s string, info os.FileInfo) {
 	}
 	if longFlag {
 		// TODO: calculate alignment
-		fmt.Printf("%s %8d %s %s\n",
+		fmt.Printf("%s %5s %s %s\n",
 			info.Mode().String(),
-			info.Size(),
+			humanReadable(info.Size()),
 			formatTime(info.ModTime()),
 			s,
 		)
 	} else {
 		fmt.Println(s)
 	}
+}
+
+func humanReadable(size int64) string {
+	if size < 1024 {
+		return fmt.Sprintf("%dB", size)
+	}
+
+	base := 1024.0
+	units := []string{"K", "M", "G", "T", "P"}
+	v := float64(size)
+
+	for _, u := range units {
+		v /= base
+		if v < 99.95 {
+			return fmt.Sprintf("%.1f%s", math.Round(v*10)/10, u)
+		}
+		if v < base-0.5 {
+			return fmt.Sprintf("%.0f%s", math.Round(v), u)
+		}
+	}
+
+	return "+999" + units[len(units)-1]
 }
 
 func classify(m os.FileMode) rune {
