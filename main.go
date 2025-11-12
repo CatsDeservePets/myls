@@ -21,7 +21,10 @@ var (
 	longFlag bool
 )
 
-var currYear = time.Now().Year()
+var (
+	dirEntries = map[string][]os.DirEntry{}
+	currYear   = time.Now().Year()
+)
 
 const helpMessage = `
 myls - My interpretation of the ls(1) command
@@ -93,7 +96,7 @@ func main() {
 	drawHeader()
 
 	for _, f := range files {
-		printEntry(f.path, f.info)
+		printEntry(f.path, f.path, f.info)
 	}
 
 	for _, d := range dirs {
@@ -113,7 +116,7 @@ func main() {
 }
 
 func listDir(dir string) error {
-	ents, err := os.ReadDir(dir)
+	ents, err := readDir(dir)
 	if err != nil {
 		return err
 	}
@@ -121,13 +124,14 @@ func listDir(dir string) error {
 	if allFlag {
 		// Current and parent dir
 		for _, e := range [...]string{".", ".."} {
-			info, err := os.Lstat(filepath.Join(dir, e))
+			full := filepath.Join(dir, e)
+			info, err := os.Lstat(full)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
 				continue
 			}
 
-			printEntry(e, info)
+			printEntry(e, full, info)
 		}
 	}
 
@@ -143,13 +147,30 @@ func listDir(dir string) error {
 			continue
 		}
 
-		printEntry(name, info)
+		full := filepath.Join(dir, name)
+		printEntry(name, full, info)
 	}
 
 	return nil
 }
 
-func printEntry(s string, info os.FileInfo) {
+func readDir(path string) ([]os.DirEntry, error) {
+	clean := filepath.Clean(path)
+	if ents, ok := dirEntries[clean]; ok {
+		return ents, nil
+	}
+
+	ents, err := os.ReadDir(clean)
+	if err != nil {
+		return nil, err
+	}
+	dirEntries[clean] = ents
+
+	return ents, nil
+}
+
+func printEntry(name, fullPath string, info os.FileInfo) {
+	s := name
 	if suffix := classify(info.Mode()); suffix != 0 {
 		s += string(suffix)
 	}
@@ -157,7 +178,11 @@ func printEntry(s string, info os.FileInfo) {
 	if longFlag {
 		var size string
 		if info.IsDir() {
-			size = "-"
+			if ents, err := readDir(fullPath); err == nil {
+				size = fmt.Sprintf("%d", len(ents))
+			} else {
+				size = "!"
+			}
 		} else {
 			size = humanReadable(info.Size())
 		}
