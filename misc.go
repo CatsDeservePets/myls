@@ -59,10 +59,6 @@ func mode(info os.FileInfo) string {
 	return string(b)
 }
 
-// func mode(info os.FileInfo) string {
-// 	return info.Mode().String()
-// }
-
 func drawHeader() {
 	if !longFlag {
 		return
