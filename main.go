@@ -172,6 +172,10 @@ func readDir(path string) ([]os.DirEntry, error) {
 func printEntry(name, fullPath string, info os.FileInfo) {
 	if suffix := classify(info.Mode()); suffix != 0 {
 		name += string(suffix)
+		if suffix == '@' && longFlag {
+			target, _ := os.Readlink(fullPath)
+			name += " -> " + target
+		}
 	}
 
 	if longFlag {
