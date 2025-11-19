@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+const permSpacer = " "
+
 // mode returns an ls-style string representation for the file info.
 // See https://github.com/golang/go/issues/27452 why we avoid FileMode.String
 // and https://man.freebsd.org/cgi/man.cgi?ls for references.

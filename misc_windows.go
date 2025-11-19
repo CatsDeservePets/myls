@@ -6,6 +6,9 @@ import (
 	"syscall"
 )
 
+// On Windows, the header is shorter than the permission string
+const permSpacer = ""
+
 // mode returns a Powershell-style string representation for the file info.
 // See https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem
 // and https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-item
@@ -46,7 +49,7 @@ func drawHeader() {
 		return
 	}
 
-	fmt.Printf("%s   %s %s %s\n",
+	fmt.Printf("%s  %s %s %s\n",
 		underline("Mode"),
 		underline("Size"),
 		underline("Date Modified"),

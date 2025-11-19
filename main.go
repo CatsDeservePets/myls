@@ -187,8 +187,9 @@ func printEntry(name, fullPath string, info os.FileInfo) {
 			size = humanReadable(info.Size())
 		}
 		// TODO: calculate alignment
-		fmt.Printf("%s %5s %s %s\n",
+		fmt.Printf("%s%s%5s %s %s\n",
 			mode(info),
+			permSpacer,
 			size,
 			formatTime(info.ModTime()),
 			s,
