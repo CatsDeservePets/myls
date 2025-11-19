@@ -1,0 +1,55 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"syscall"
+)
+
+// mode returns a Powershell-style string representation for the file info.
+// See https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem
+// and https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-item
+// for references.
+// Note: Some examples still show the obsolete 6-character mode format.
+func mode(info os.FileInfo) string {
+	m := info.Mode()
+	b := [5]byte{'-', '-', '-', '-', '-'}
+	switch {
+	case m&os.ModeSymlink != 0:
+		b[0] = 'l'
+	case info.IsDir():
+		b[0] = 'd'
+	}
+
+	if sys, ok := info.Sys().(*syscall.Win32FileAttributeData); ok && sys != nil {
+		attrs := sys.FileAttributes
+
+		if attrs&syscall.FILE_ATTRIBUTE_ARCHIVE != 0 {
+			b[1] = 'a'
+		}
+		if attrs&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+			b[2] = 'r'
+		}
+		if attrs&syscall.FILE_ATTRIBUTE_HIDDEN != 0 {
+			b[3] = 'h'
+		}
+		if attrs&syscall.FILE_ATTRIBUTE_SYSTEM != 0 {
+			b[4] = 's'
+		}
+	}
+
+	return string(b[:])
+}
+
+func drawHeader() {
+	if !longFlag {
+		return
+	}
+
+	fmt.Printf("%s   %s %s %s\n",
+		underline("Mode"),
+		underline("Size"),
+		underline("Date Modified"),
+		underline("Name"),
+	)
+}

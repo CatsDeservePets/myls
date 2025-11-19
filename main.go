@@ -188,7 +188,7 @@ func printEntry(name, fullPath string, info os.FileInfo) {
 		}
 		// TODO: calculate alignment
 		fmt.Printf("%s %5s %s %s\n",
-			info.Mode().String(),
+			mode(info),
 			size,
 			formatTime(info.ModTime()),
 			s,
@@ -196,24 +196,6 @@ func printEntry(name, fullPath string, info os.FileInfo) {
 	} else {
 		fmt.Println(s)
 	}
-}
-
-func drawHeader() {
-	if !longFlag {
-		return
-	}
-
-	underline := func(s string) string {
-		// underline + string + reset
-		return "\033[4m" + s + "\033[0m"
-	}
-
-	fmt.Printf("%s %s %s %s\n",
-		underline("Permissions"),
-		underline("Size"),
-		underline("Date Modified"),
-		underline("Name"),
-	)
 }
 
 func humanReadable(size int64) string {
@@ -260,4 +242,9 @@ func formatTime(t time.Time) string {
 		return t.Format("Jan _2 15:04 ")
 	}
 	return t.Format("Jan _2  2006 ")
+}
+
+func underline(s string) string {
+	// underline + string + reset
+	return "\033[4m" + s + "\033[0m"
 }
