@@ -170,9 +170,8 @@ func readDir(path string) ([]os.DirEntry, error) {
 }
 
 func printEntry(name, fullPath string, info os.FileInfo) {
-	s := name
 	if suffix := classify(info.Mode()); suffix != 0 {
-		s += string(suffix)
+		name += string(suffix)
 	}
 
 	if longFlag {
@@ -192,10 +191,10 @@ func printEntry(name, fullPath string, info os.FileInfo) {
 			permSpacer,
 			size,
 			formatTime(info.ModTime()),
-			s,
+			name,
 		)
 	} else {
-		fmt.Println(s)
+		fmt.Println(name)
 	}
 }
 
