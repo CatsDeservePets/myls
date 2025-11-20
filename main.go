@@ -1,11 +1,13 @@
 package main
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -160,10 +162,19 @@ func readDir(path string) ([]os.DirEntry, error) {
 		return ents, nil
 	}
 
-	ents, err := os.ReadDir(clean)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
+
+	ents, err := f.ReadDir(-1)
+	if err != nil {
+		return nil, err
+	}
+	slices.SortFunc(ents, func(a, b os.DirEntry) int {
+		return cmp.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+	})
 	dirEntries[clean] = ents
 
 	return ents, nil
