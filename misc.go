@@ -4,6 +4,7 @@ package main
 
 import (
 	"os"
+	"strings"
 )
 
 // mode returns an ls-style string representation for the file info.
@@ -72,4 +73,8 @@ func classify(e entry) rune {
 	default:
 		return 0
 	}
+}
+
+func isHidden(e entry) bool {
+	return strings.HasPrefix(e.name, ".")
 }

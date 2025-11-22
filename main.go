@@ -147,7 +147,7 @@ func listDir(dir string) error {
 	}
 
 	for _, e := range ents {
-		if !allFlag && strings.HasPrefix(e.name, ".") {
+		if !allFlag && isHidden(e) {
 			continue
 		}
 		printEntry(e)

@@ -63,3 +63,13 @@ func classify(e entry) rune {
 		return 0
 	}
 }
+
+func isHidden(e entry) bool {
+	hidden := strings.HasPrefix(e.name, ".")
+	if !hidden {
+		if sys, ok := e.info.Sys().(*syscall.Win32FileAttributeData); ok && sys != nil {
+			hidden = sys.FileAttributes&syscall.FILE_ATTRIBUTE_HIDDEN != 0
+		}
+	}
+	return hidden
+}
