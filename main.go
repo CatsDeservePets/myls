@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -27,7 +28,14 @@ var (
 var (
 	dirEntries = map[string][]entry{}
 	currYear   = time.Now().Year()
+	permSpacer = " "
 )
+
+func init() {
+	if runtime.GOOS == "windows" {
+		permSpacer = ""
+	}
+}
 
 const helpMessage = `
 myls - My interpretation of the ls(1) command
@@ -242,29 +250,33 @@ func humanReadable(size int64) string {
 	return "+999" + units[len(units)-1]
 }
 
-func classify(e entry) rune {
-	m := e.info.Mode()
-	switch {
-	case m&os.ModeSymlink != 0:
-		return '@'
-	case m.IsDir():
-		return os.PathSeparator
-	case m&os.ModeNamedPipe != 0:
-		return '|'
-	case m&os.ModeSocket != 0:
-		return '='
-	case m&0o111 != 0:
-		return '*'
-	default:
-		return 0
-	}
-}
-
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
 		return t.Format("Jan _2 15:04 ")
 	}
 	return t.Format("Jan _2  2006 ")
+}
+
+func drawHeader() {
+	if !longFlag {
+		return
+	}
+
+	if runtime.GOOS == "windows" {
+		fmt.Printf("%s  %s %s %s\n",
+			underline("Mode"),
+			underline("Size"),
+			underline("Date Modified"),
+			underline("Name"),
+		)
+	} else {
+		fmt.Printf("%s %s %s %s\n",
+			underline("Permissions"),
+			underline("Size"),
+			underline("Date Modified"),
+			underline("Name"),
+		)
+	}
 }
 
 func underline(s string) string {

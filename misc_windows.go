@@ -3,13 +3,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"syscall"
 )
-
-// On Windows, the header is shorter than the permission string
-const permSpacer = ""
 
 // mode returns a Powershell-style string representation for the file info.
 // See https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem
@@ -46,15 +44,22 @@ func mode(e entry) string {
 	return string(b[:])
 }
 
-func drawHeader() {
-	if !longFlag {
-		return
+func classify(e entry) rune {
+	m := e.info.Mode()
+	switch {
+	case m&os.ModeSymlink != 0:
+		return '@'
+	case m&os.ModeDir != 0:
+		return os.PathSeparator
+	case m&os.ModeNamedPipe != 0:
+		return '|'
 	}
 
-	fmt.Printf("%s  %s %s %s\n",
-		underline("Mode"),
-		underline("Size"),
-		underline("Date Modified"),
-		underline("Name"),
-	)
+	ext := strings.ToLower(filepath.Ext(e.name))
+	switch ext {
+	case ".exe", ".msi", ".cmd", ".bat", ".ps1":
+		return '*'
+	default:
+		return 0
+	}
 }

@@ -3,11 +3,8 @@
 package main
 
 import (
-	"fmt"
 	"os"
 )
-
-const permSpacer = " "
 
 // mode returns an ls-style string representation for the file info.
 // See https://github.com/golang/go/issues/27452 why we avoid FileMode.String
@@ -59,15 +56,20 @@ func mode(e entry) string {
 	return string(b)
 }
 
-func drawHeader() {
-	if !longFlag {
-		return
+func classify(e entry) rune {
+	m := e.info.Mode()
+	switch {
+	case m&os.ModeSymlink != 0:
+		return '@'
+	case m&os.ModeDir != 0:
+		return os.PathSeparator
+	case m&os.ModeNamedPipe != 0:
+		return '|'
+	case m&os.ModeSocket != 0:
+		return '='
+	case m&0o111 != 0:
+		return '*'
+	default:
+		return 0
 	}
-
-	fmt.Printf("%s %s %s %s\n",
-		underline("Permissions"),
-		underline("Size"),
-		underline("Date Modified"),
-		underline("Name"),
-	)
 }
