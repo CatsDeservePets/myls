@@ -16,17 +16,17 @@ const permSpacer = ""
 // and https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-item
 // for references.
 // Note: Some examples still show the obsolete 6-character mode format.
-func mode(info os.FileInfo) string {
-	m := info.Mode()
+func mode(e entry) string {
+	m := e.info.Mode()
 	b := [5]byte{'-', '-', '-', '-', '-'}
 	switch {
 	case m&os.ModeSymlink != 0:
 		b[0] = 'l'
-	case info.IsDir():
+	case e.info.IsDir():
 		b[0] = 'd'
 	}
 
-	if sys, ok := info.Sys().(*syscall.Win32FileAttributeData); ok && sys != nil {
+	if sys, ok := e.info.Sys().(*syscall.Win32FileAttributeData); ok && sys != nil {
 		attrs := sys.FileAttributes
 
 		if attrs&syscall.FILE_ATTRIBUTE_ARCHIVE != 0 {

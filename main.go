@@ -12,7 +12,8 @@ import (
 	"time"
 )
 
-type fileEntry struct {
+type entry struct {
+	name string
 	path string
 	info os.FileInfo
 }
@@ -24,7 +25,7 @@ var (
 )
 
 var (
-	dirEntries = map[string][]os.DirEntry{}
+	dirEntries = map[string][]entry{}
 	currYear   = time.Now().Year()
 )
 
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	var dirs []string
-	var files []fileEntry
+	var files []entry
 
 	for _, pattern := range args {
 		paths := []string{pattern}
@@ -84,7 +85,7 @@ func main() {
 			if info.IsDir() {
 				dirs = append(dirs, p)
 			} else {
-				files = append(files, fileEntry{path: p, info: info})
+				files = append(files, entry{p, p, info})
 			}
 		}
 	}
@@ -97,8 +98,8 @@ func main() {
 
 	drawHeader()
 
-	for _, f := range files {
-		printEntry(f.path, f.path, f.info)
+	for _, e := range files {
+		printEntry(e)
 	}
 
 	for _, d := range dirs {
@@ -125,38 +126,29 @@ func listDir(dir string) error {
 
 	if allFlag {
 		// Current and parent dir
-		for _, e := range [...]string{".", ".."} {
-			full := filepath.Join(dir, e)
+		for _, name := range [...]string{".", ".."} {
+			full := filepath.Join(dir, name)
 			info, err := os.Lstat(full)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
 				continue
 			}
 
-			printEntry(e, full, info)
+			printEntry(entry{name, full, info})
 		}
 	}
 
 	for _, e := range ents {
-		name := e.Name()
-		if !allFlag && strings.HasPrefix(name, ".") {
+		if !allFlag && strings.HasPrefix(e.name, ".") {
 			continue
 		}
-
-		info, err := e.Info()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
-			continue
-		}
-
-		full := filepath.Join(dir, name)
-		printEntry(name, full, info)
+		printEntry(e)
 	}
 
 	return nil
 }
 
-func readDir(path string) ([]os.DirEntry, error) {
+func readDir(path string) ([]entry, error) {
 	clean := filepath.Clean(path)
 	if ents, ok := dirEntries[clean]; ok {
 		return ents, nil
@@ -168,44 +160,59 @@ func readDir(path string) ([]os.DirEntry, error) {
 	}
 	defer f.Close()
 
-	ents, err := f.ReadDir(-1)
+	dirents, err := f.ReadDir(-1)
 	if err != nil {
 		return nil, err
 	}
-	slices.SortFunc(ents, func(a, b os.DirEntry) int {
-		return cmp.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+
+	ents := make([]entry, 0, len(dirents))
+	for _, de := range dirents {
+		info, err := de.Info()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+			continue
+		}
+		name := de.Name()
+		full := filepath.Join(path, name)
+		ents = append(ents, entry{name, full, info})
+	}
+
+	slices.SortFunc(ents, func(a, b entry) int {
+		return cmp.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
 	})
 	dirEntries[clean] = ents
 
 	return ents, nil
 }
 
-func printEntry(name, fullPath string, info os.FileInfo) {
-	if suffix := classify(info.Mode()); suffix != 0 {
+func printEntry(e entry) {
+	name := e.name
+
+	if suffix := classify(e); suffix != 0 {
 		name += string(suffix)
 		if suffix == '@' && longFlag {
-			target, _ := os.Readlink(fullPath)
+			target, _ := os.Readlink(e.path)
 			name += " -> " + target
 		}
 	}
 
 	if longFlag {
 		var size string
-		if info.IsDir() {
-			if ents, err := readDir(fullPath); err == nil {
+		if e.info.IsDir() {
+			if ents, err := readDir(e.path); err == nil {
 				size = fmt.Sprintf("%d", len(ents))
 			} else {
 				size = "!"
 			}
 		} else {
-			size = humanReadable(info.Size())
+			size = humanReadable(e.info.Size())
 		}
 		// TODO: calculate alignment
 		fmt.Printf("%s%s%5s %s %s\n",
-			mode(info),
+			mode(e),
 			permSpacer,
 			size,
-			formatTime(info.ModTime()),
+			formatTime(e.info.ModTime()),
 			name,
 		)
 	} else {
@@ -235,7 +242,8 @@ func humanReadable(size int64) string {
 	return "+999" + units[len(units)-1]
 }
 
-func classify(m os.FileMode) rune {
+func classify(e entry) rune {
+	m := e.info.Mode()
 	switch {
 	case m&os.ModeSymlink != 0:
 		return '@'
