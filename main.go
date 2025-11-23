@@ -86,7 +86,7 @@ func main() {
 		for _, p := range paths {
 			info, err := os.Lstat(p)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+				showError(err)
 				continue
 			}
 
@@ -120,7 +120,7 @@ func main() {
 		}
 
 		if err := listDir(d); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+			showError(err)
 		}
 		hasOutput = true
 	}
@@ -138,7 +138,7 @@ func listDir(dir string) error {
 			full := filepath.Join(dir, name)
 			info, err := os.Lstat(full)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+				showError(err)
 				continue
 			}
 
@@ -177,7 +177,7 @@ func readDir(path string) ([]entry, error) {
 	for _, de := range dirents {
 		info, err := de.Info()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], err)
+			showError(err)
 			continue
 		}
 		name := de.Name()
@@ -282,4 +282,8 @@ func drawHeader() {
 func underline(s string) string {
 	// underline + string + reset
 	return "\033[4m" + s + "\033[0m"
+}
+
+func showError(e error) {
+	fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], e)
 }
