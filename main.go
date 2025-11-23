@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -28,14 +27,7 @@ var (
 var (
 	dirEntries = map[string][]entry{}
 	currYear   = time.Now().Year()
-	permSpacer = " "
 )
-
-func init() {
-	if runtime.GOOS == "windows" {
-		permSpacer = ""
-	}
-}
 
 const helpMessage = `
 myls - My interpretation of the ls(1) command
@@ -104,8 +96,6 @@ func main() {
 	hasOutput := len(files) > 0
 	showDirHeader := len(dirs) > 1 || len(files) > 0
 
-	drawHeader()
-
 	for _, e := range files {
 		printEntry(e)
 	}
@@ -116,7 +106,6 @@ func main() {
 		}
 		if showDirHeader {
 			fmt.Printf("%s:\n", d) // Label directory when multiple sections exist.
-			drawHeader()
 		}
 
 		if err := listDir(d); err != nil {
@@ -216,9 +205,8 @@ func printEntry(e entry) {
 			size = humanReadable(e.info.Size())
 		}
 		// TODO: calculate alignment
-		fmt.Printf("%s%s%5s %s %s\n",
+		fmt.Printf("%s %5s %s %s\n",
 			mode(e),
-			permSpacer,
 			size,
 			formatTime(e.info.ModTime()),
 			name,
@@ -252,36 +240,9 @@ func humanReadable(size int64) string {
 
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
-		return t.Format("Jan _2 15:04 ")
+		return t.Format("Jan _2 15:04")
 	}
-	return t.Format("Jan _2  2006 ")
-}
-
-func drawHeader() {
-	if !longFlag {
-		return
-	}
-
-	if runtime.GOOS == "windows" {
-		fmt.Printf("%s  %s %s %s\n",
-			underline("Mode"),
-			underline("Size"),
-			underline("Date Modified"),
-			underline("Name"),
-		)
-	} else {
-		fmt.Printf("%s %s %s %s\n",
-			underline("Permissions"),
-			underline("Size"),
-			underline("Date Modified"),
-			underline("Name"),
-		)
-	}
-}
-
-func underline(s string) string {
-	// underline + string + reset
-	return "\033[4m" + s + "\033[0m"
+	return t.Format("Jan _2  2006")
 }
 
 func showError(e error) {
