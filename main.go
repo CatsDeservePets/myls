@@ -94,55 +94,43 @@ func main() {
 		os.Exit(1)
 	}
 	hasOutput := len(files) > 0
-	showDirHeader := len(dirs) > 1 || len(files) > 0
+	showDirName := len(files) > 0 || len(dirs) > 1
 
-	for _, e := range files {
-		printEntry(e)
-	}
+	printEntries(files)
 
 	for _, d := range dirs {
 		if hasOutput {
 			fmt.Println() // Separate directory listing from previous output.
 		}
-		if showDirHeader {
+		if showDirName {
 			fmt.Printf("%s:\n", d) // Label directory when multiple sections exist.
 		}
 
-		if err := listDir(d); err != nil {
+		ents, err := readDir(d)
+		if err != nil {
 			showError(err)
 		}
+		if allFlag {
+			ents = append(selfAndParent(d), ents...)
+		} else {
+			ents = slices.DeleteFunc(ents, isHidden)
+		}
+		printEntries(ents)
 		hasOutput = true
 	}
 }
 
-func listDir(dir string) error {
-	ents, err := readDir(dir)
-	if err != nil {
-		return err
-	}
-
-	if allFlag {
-		// Current and parent dir
-		for _, name := range [...]string{".", ".."} {
-			full := filepath.Join(dir, name)
-			info, err := os.Lstat(full)
-			if err != nil {
-				showError(err)
-				continue
-			}
-
-			printEntry(entry{name, full, info})
+func selfAndParent(dir string) []entry {
+	ents := make([]entry, 0, 2)
+	for _, name := range [...]string{".", ".."} {
+		full := filepath.Join(dir, name)
+		if info, err := os.Lstat(full); err != nil {
+			showError(err)
+		} else {
+			ents = append(ents, entry{name, full, info})
 		}
 	}
-
-	for _, e := range ents {
-		if !allFlag && isHidden(e) {
-			continue
-		}
-		printEntry(e)
-	}
-
-	return nil
+	return ents
 }
 
 func readDir(path string) ([]entry, error) {
@@ -182,18 +170,39 @@ func readDir(path string) ([]entry, error) {
 	return ents, nil
 }
 
-func printEntry(e entry) {
-	name := e.name
-
-	if suffix := classify(e); suffix != 0 {
-		name += string(suffix)
-		if suffix == '@' && longFlag {
-			target, _ := os.Readlink(e.path)
-			name += " -> " + target
-		}
+func printEntries(ents []entry) {
+	if len(ents) == 0 {
+		return
 	}
-
 	if longFlag {
+		printLong(ents)
+	} else {
+		printShort(ents)
+	}
+}
+
+func printShort(ents []entry) {
+	for _, e := range ents {
+		name := e.name
+		if suffix := classify(e); suffix != 0 {
+			name += string(suffix)
+		}
+		fmt.Println(name)
+	}
+}
+
+func printLong(ents []entry) {
+	for _, e := range ents {
+		name := e.name
+
+		if suffix := classify(e); suffix != 0 {
+			name += string(suffix)
+			if suffix == '@' {
+				target, _ := os.Readlink(e.path)
+				name += " -> " + target
+			}
+		}
+
 		var size string
 		if e.info.IsDir() {
 			if ents, err := readDir(e.path); err == nil {
@@ -211,8 +220,6 @@ func printEntry(e entry) {
 			formatTime(e.info.ModTime()),
 			name,
 		)
-	} else {
-		fmt.Println(name)
 	}
 }
 
