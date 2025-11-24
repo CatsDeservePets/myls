@@ -191,10 +191,21 @@ func printShort(ents []entry) {
 	}
 }
 
+type row struct {
+	modeStr string
+	sizeStr string
+	timeStr string
+	nameStr string
+}
+
 func printLong(ents []entry) {
+	rows := make([]row, 0, len(ents))
+
+	sizeWidth := 0
+	timeWidth := 0
+
 	for _, e := range ents {
 		name := e.name
-
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 			if suffix == '@' {
@@ -203,22 +214,39 @@ func printLong(ents []entry) {
 			}
 		}
 
-		var size string
+		var sizeStr string
 		if e.info.IsDir() {
 			if ents, err := readDir(e.path); err == nil {
-				size = fmt.Sprintf("%d", len(ents))
+				sizeStr = fmt.Sprintf("%d", len(ents))
 			} else {
-				size = "!"
+				sizeStr = "!"
 			}
 		} else {
-			size = humanReadable(e.info.Size())
+			sizeStr = humanReadable(e.info.Size())
 		}
-		// TODO: calculate alignment
-		fmt.Printf("%s %5s %s %s\n",
-			mode(e),
-			size,
-			formatTime(e.info.ModTime()),
-			name,
+		if n := len(sizeStr); n > sizeWidth {
+			sizeWidth = n
+		}
+
+		timeStr := formatTime(e.info.ModTime())
+		if n := len(timeStr); n > timeWidth {
+			timeWidth = n
+		}
+
+		rows = append(rows, row{
+			modeStr: mode(e),
+			sizeStr: sizeStr,
+			timeStr: timeStr,
+			nameStr: name,
+		})
+	}
+
+	for _, r := range rows {
+		fmt.Printf("%s %*s %-*s %s\n",
+			r.modeStr,
+			sizeWidth, r.sizeStr,
+			timeWidth, r.timeStr,
+			r.nameStr,
 		)
 	}
 }
