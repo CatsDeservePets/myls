@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -18,10 +19,52 @@ type entry struct {
 	info os.FileInfo
 }
 
+type sortBy int
+
+const (
+	name sortBy = iota
+	size
+	mtime
+	extension
+)
+
+func (s *sortBy) Set(cmp string) error {
+	switch cmp {
+	case "name":
+		*s = name
+	case "ext", "extension":
+		*s = extension
+	case "size":
+		*s = size
+	case "time", "mtime":
+		*s = mtime
+	default:
+		return errors.New("must be name, extension, size, or time")
+	}
+	return nil
+}
+
+func (s sortBy) String() string {
+	switch s {
+	case name:
+		return "name"
+	case extension:
+		return "extension"
+	case size:
+		return "size"
+	case mtime:
+		return "time"
+	default:
+		return ""
+	}
+}
+
 var (
-	helpFlag bool
-	allFlag  bool
-	longFlag bool
+	helpFlag    bool
+	allFlag     bool
+	longFlag    bool
+	reverseFlag bool
+	sortFlag    sortBy
 )
 
 var (
@@ -33,12 +76,14 @@ const helpMessage = `
 myls - My interpretation of the ls(1) command
 
 positional arguments:
-  file       files or directories to display
+  file        files or directories to display
 
 options:
-  -h, -help  show this help message and exit
-  -a         do not ignore entries starting with .
-  -l         use a long listing format
+  -h, -help   show this help message and exit
+  -a          do not ignore entries starting with .
+  -l          use a long listing format
+  -r          reverse order while sorting
+  -sort WORD  one of: name, extension, size, time (default: name)
 `
 
 func main() {
@@ -46,9 +91,11 @@ func main() {
 	flag.BoolVar(&helpFlag, "help", false, "")
 	flag.BoolVar(&allFlag, "a", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
+	flag.BoolVar(&reverseFlag, "r", false, "")
+	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [file ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-sort WORD] [file ...]\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -65,8 +112,7 @@ func main() {
 		args = []string{"."}
 	}
 
-	var dirs []string
-	var files []entry
+	var files, dirs []entry
 
 	for _, pattern := range args {
 		paths := []string{pattern}
@@ -82,10 +128,12 @@ func main() {
 				continue
 			}
 
+			ent := entry{p, p, info}
 			if info.IsDir() {
-				dirs = append(dirs, p)
+				// Prefer entry type over string to simplify sorting.
+				dirs = append(dirs, ent)
 			} else {
-				files = append(files, entry{p, p, info})
+				files = append(files, ent)
 			}
 		}
 	}
@@ -96,6 +144,9 @@ func main() {
 	hasOutput := len(files) > 0
 	showDirName := len(files) > 0 || len(dirs) > 1
 
+	sort(files)
+	sort(dirs)
+
 	printEntries(files)
 
 	for _, d := range dirs {
@@ -103,20 +154,56 @@ func main() {
 			fmt.Println() // Separate directory listing from previous output.
 		}
 		if showDirName {
-			fmt.Printf("%s:\n", d) // Label directory when multiple sections exist.
+			fmt.Printf("%s:\n", d.name) // Label directory when multiple sections exist.
 		}
 
-		ents, err := readDir(d)
+		ents, err := readDir(d.name)
+		sort(ents)
 		if err != nil {
 			showError(err)
 		}
 		if allFlag {
-			ents = append(selfAndParent(d), ents...)
+			ents = append(selfAndParent(d.name), ents...)
 		} else {
 			ents = slices.DeleteFunc(ents, isHidden)
 		}
 		printEntries(ents)
 		hasOutput = true
+	}
+}
+
+func sort(ents []entry) {
+	// Always sort by name first
+	slices.SortFunc(ents, func(a, b entry) int {
+		if reverseFlag {
+			return strings.Compare(strings.ToLower(b.name), strings.ToLower(a.name))
+		}
+		return strings.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
+	})
+	switch sortFlag {
+	case extension:
+		slices.SortStableFunc(ents, func(a, b entry) int {
+			if reverseFlag {
+				return strings.Compare(strings.ToLower(filepath.Ext(b.name)), strings.ToLower(filepath.Ext(a.name)))
+			}
+			return strings.Compare(strings.ToLower(filepath.Ext(a.name)), strings.ToLower(filepath.Ext(b.name)))
+		})
+	case name:
+		// We already did that, why would we do that again?
+	case size:
+		slices.SortStableFunc(ents, func(a, b entry) int {
+			if reverseFlag {
+				return cmp.Compare(b.info.Size(), (a.info.Size()))
+			}
+			return cmp.Compare(a.info.Size(), (b.info.Size()))
+		})
+	case mtime:
+		slices.SortStableFunc(ents, func(a, b entry) int {
+			if reverseFlag {
+				return b.info.ModTime().Compare(a.info.ModTime())
+			}
+			return a.info.ModTime().Compare(b.info.ModTime())
+		})
 	}
 }
 
@@ -161,10 +248,6 @@ func readDir(path string) ([]entry, error) {
 		full := filepath.Join(path, name)
 		ents = append(ents, entry{name, full, info})
 	}
-
-	slices.SortFunc(ents, func(a, b entry) int {
-		return cmp.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
-	})
 	dirEntries[clean] = ents
 
 	return ents, nil
