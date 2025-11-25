@@ -60,11 +60,12 @@ func (s sortBy) String() string {
 }
 
 var (
-	helpFlag    bool
-	allFlag     bool
-	longFlag    bool
-	reverseFlag bool
-	sortFlag    sortBy
+	helpFlag      bool
+	allFlag       bool
+	longFlag      bool
+	reverseFlag   bool
+	dirsFirstFlag bool
+	sortFlag      sortBy
 )
 
 var (
@@ -83,6 +84,7 @@ options:
   -a          do not ignore entries starting with .
   -l          use a long listing format
   -r          reverse order while sorting
+  -dirsfirst  show directories above regular files
   -sort WORD  one of: name, extension, size, time (default: name)
 `
 
@@ -92,10 +94,11 @@ func main() {
 	flag.BoolVar(&allFlag, "a", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
 	flag.BoolVar(&reverseFlag, "r", false, "")
+	flag.BoolVar(&dirsFirstFlag, "dirsfirst", false, "")
 	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-sort WORD] [file ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-dirsfirst] [-sort WORD] [file ...]\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -203,6 +206,17 @@ func sort(ents []entry) {
 				return b.info.ModTime().Compare(a.info.ModTime())
 			}
 			return a.info.ModTime().Compare(b.info.ModTime())
+		})
+	}
+	if dirsFirstFlag {
+		slices.SortStableFunc(ents, func(a, b entry) int {
+			if a.info.IsDir() == b.info.IsDir() {
+				return 0
+			}
+			if a.info.IsDir() != reverseFlag {
+				return -1
+			}
+			return 1
 		})
 	}
 }
