@@ -29,6 +29,7 @@ const (
 	size
 	mtime
 	extension
+	git
 )
 
 func (s *sortBy) Set(cmp string) error {
@@ -41,8 +42,10 @@ func (s *sortBy) Set(cmp string) error {
 		*s = size
 	case "time", "mtime":
 		*s = mtime
+	case "git":
+		*s = git
 	default:
-		return errors.New("must be name, extension, size, or time")
+		return errors.New("must be name, extension, size, time, or git")
 	}
 	return nil
 }
@@ -57,6 +60,8 @@ func (s sortBy) String() string {
 		return "size"
 	case mtime:
 		return "time"
+	case git:
+		return "git"
 	default:
 		return ""
 	}
@@ -89,7 +94,7 @@ options:
   -l          use a long listing format
   -r          reverse order while sorting
   -dirsfirst  show directories above regular files
-  -sort WORD  one of: name, extension, size, time (default: name)
+  -sort WORD  one of: name, extension, size, time, git (default: name)
 `
 
 func main() {
@@ -155,14 +160,13 @@ func main() {
 	hasOutput := len(files) > 0
 	showDirName := len(files) > 0 || len(dirs) > 1
 
-	sort(files)
-	sort(dirs)
-
 	if longFlag {
 		attachGit(files)
 	}
+	sort(files)
 	printEntries(files)
 
+	sort(dirs)
 	for _, d := range dirs {
 		if hasOutput {
 			fmt.Println() // Separate directory listing from previous output.
@@ -172,17 +176,17 @@ func main() {
 		}
 
 		ents, err := readDir(d.path)
-		sort(ents)
 		if err != nil {
 			showError(err)
 		}
+		if longFlag {
+			attachGit(ents)
+		}
+		sort(ents)
 		if allFlag {
 			ents = append(selfAndParent(d.path), ents...)
 		} else {
 			ents = slices.DeleteFunc(ents, isHidden)
-		}
-		if longFlag {
-			attachGit(ents)
 		}
 		printEntries(ents)
 		hasOutput = true
@@ -220,6 +224,13 @@ func sort(ents []entry) {
 				return b.info.ModTime().Compare(a.info.ModTime())
 			}
 			return a.info.ModTime().Compare(b.info.ModTime())
+		})
+	case git:
+		slices.SortStableFunc(ents, func(a, b entry) int {
+			if reverseFlag {
+				return strings.Compare(strings.ToLower(b.git), strings.ToLower(a.git))
+			}
+			return strings.Compare(strings.ToLower(a.git), strings.ToLower(b.git))
 		})
 	}
 	if dirsFirstFlag {
