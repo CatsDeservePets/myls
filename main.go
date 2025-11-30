@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"cmp"
 	"errors"
 	"flag"
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,6 +19,7 @@ type entry struct {
 	name string
 	path string
 	info os.FileInfo
+	git  string
 }
 
 type sortBy int
@@ -70,6 +73,7 @@ var (
 
 var (
 	dirEntries = map[string][]entry{}
+	gitRepos   = map[string]map[string]string{}
 	currYear   = time.Now().Year()
 )
 
@@ -131,7 +135,11 @@ func main() {
 				continue
 			}
 
-			ent := entry{p, p, info}
+			abs := p
+			if a, err := filepath.Abs(p); err == nil {
+				abs = a
+			}
+			ent := entry{p, abs, info, ""}
 			if info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
 				dirs = append(dirs, ent)
@@ -150,6 +158,9 @@ func main() {
 	sort(files)
 	sort(dirs)
 
+	if longFlag {
+		attachGit(files)
+	}
 	printEntries(files)
 
 	for _, d := range dirs {
@@ -160,15 +171,18 @@ func main() {
 			fmt.Printf("%s:\n", d.name) // Label directory when multiple sections exist.
 		}
 
-		ents, err := readDir(d.name)
+		ents, err := readDir(d.path)
 		sort(ents)
 		if err != nil {
 			showError(err)
 		}
 		if allFlag {
-			ents = append(selfAndParent(d.name), ents...)
+			ents = append(selfAndParent(d.path), ents...)
 		} else {
 			ents = slices.DeleteFunc(ents, isHidden)
+		}
+		if longFlag {
+			attachGit(ents)
 		}
 		printEntries(ents)
 		hasOutput = true
@@ -228,7 +242,7 @@ func selfAndParent(dir string) []entry {
 		if info, err := os.Lstat(full); err != nil {
 			showError(err)
 		} else {
-			ents = append(ents, entry{name, full, info})
+			ents = append(ents, entry{name, full, info, ""})
 		}
 	}
 	return ents
@@ -260,11 +274,81 @@ func readDir(path string) ([]entry, error) {
 		}
 		name := de.Name()
 		full := filepath.Join(path, name)
-		ents = append(ents, entry{name, full, info})
+		ents = append(ents, entry{name, full, info, ""})
 	}
 	dirEntries[clean] = ents
 
 	return ents, nil
+}
+
+func attachGit(ents []entry) {
+	dirCache := make(map[string]map[string]string)
+	for i := range ents {
+		dir := filepath.Dir(ents[i].path)
+		stats, ok := dirCache[dir]
+		if !ok {
+			stats = gitStatusesForDir(dir)
+			dirCache[dir] = stats
+		}
+		if stats == nil {
+			continue
+		}
+		if signs, ok := stats[ents[i].path]; ok {
+			ents[i].git = strings.ReplaceAll(signs, " ", "-")
+		}
+	}
+}
+
+func gitStatusesForDir(dir string) map[string]string {
+	root := gitRoot(dir)
+	if root == "" {
+		return nil
+	}
+	if st, ok := gitRepos[root]; ok {
+		return st
+	}
+
+	cmd := exec.Command(
+		"git", "-C", root,
+		"status", "--porcelain=v1", "-z", "--ignored",
+	)
+	out, err := cmd.Output()
+
+	stats := make(map[string]string)
+	if err != nil {
+		gitRepos[root] = stats
+		return stats
+	}
+
+	for rec := range bytes.SplitSeq(out, []byte{0}) {
+		// skip invalid status (e.g. second part of rename entry)
+		if len(rec) < 4 || rec[2] != ' ' {
+			continue
+		}
+		signs := string(rec[:2])
+		rel := string(rec[3:])
+		rel = filepath.FromSlash(rel)
+		full := filepath.Join(root, rel)
+
+		stats[full] = signs
+	}
+	gitRepos[root] = stats
+
+	return stats
+}
+
+func gitRoot(dir string) string {
+	root := dir
+	for {
+		if _, err := os.Stat(filepath.Join(root, ".git")); err == nil {
+			return root
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			return ""
+		}
+		root = parent
+	}
 }
 
 func printEntries(ents []entry) {
@@ -292,6 +376,7 @@ type row struct {
 	modeStr string
 	sizeStr string
 	timeStr string
+	gitStr  string
 	nameStr string
 }
 
@@ -300,6 +385,7 @@ func printLong(ents []entry) {
 
 	sizeWidth := 0
 	timeWidth := 0
+	gitWidth := 0
 
 	for _, e := range ents {
 		name := e.name
@@ -330,21 +416,40 @@ func printLong(ents []entry) {
 			timeWidth = n
 		}
 
+		gitStr := e.git
+		if n := len(gitStr); n > gitWidth {
+			gitWidth = n
+		}
+
 		rows = append(rows, row{
 			modeStr: mode(e),
 			sizeStr: sizeStr,
 			timeStr: timeStr,
+			gitStr:  gitStr,
 			nameStr: name,
 		})
 	}
 
 	for _, r := range rows {
-		fmt.Printf("%s %*s %-*s %s\n",
-			r.modeStr,
-			sizeWidth, r.sizeStr,
-			timeWidth, r.timeStr,
-			r.nameStr,
-		)
+		if gitWidth > 0 {
+			if r.gitStr == "" {
+				r.gitStr = "--"
+			}
+			fmt.Printf("%s %*s %-*s %-*s %s\n",
+				r.modeStr,
+				sizeWidth, r.sizeStr,
+				timeWidth, r.timeStr,
+				gitWidth, r.gitStr,
+				r.nameStr,
+			)
+		} else {
+			fmt.Printf("%s %*s %-*s %s\n",
+				r.modeStr,
+				sizeWidth, r.sizeStr,
+				timeWidth, r.timeStr,
+				r.nameStr,
+			)
+		}
 	}
 }
 
