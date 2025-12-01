@@ -23,7 +23,7 @@ options:
   -l          use a long listing format
   -r          reverse order while sorting
   -dirsfirst  show directories above regular files
-  -sort WORD  one of: name, extension, size, time (default: name)
+  -sort WORD  one of: name, extension, size, time, git (default: name)
 ```
 
 ## Example output
