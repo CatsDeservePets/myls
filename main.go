@@ -214,9 +214,9 @@ func sort(ents []entry) {
 	case size:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if reverseFlag {
-				return cmp.Compare(b.info.Size(), (a.info.Size()))
+				return cmp.Compare(b.info.Size(), a.info.Size())
 			}
-			return cmp.Compare(a.info.Size(), (b.info.Size()))
+			return cmp.Compare(a.info.Size(), b.info.Size())
 		})
 	case mtime:
 		slices.SortStableFunc(ents, func(a, b entry) int {
