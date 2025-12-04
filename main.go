@@ -182,12 +182,12 @@ func main() {
 		if longFlag {
 			attachGit(ents)
 		}
-		sort(ents)
 		if allFlag {
 			ents = append(selfAndParent(d.path), ents...)
 		} else {
 			ents = slices.DeleteFunc(ents, isHidden)
 		}
+		sort(ents)
 		printEntries(ents)
 		hasOutput = true
 	}
@@ -238,7 +238,7 @@ func sort(ents []entry) {
 			if a.info.IsDir() == b.info.IsDir() {
 				return 0
 			}
-			if a.info.IsDir() != reverseFlag {
+			if a.info.IsDir() {
 				return -1
 			}
 			return 1
