@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"golang.org/x/term"
 	"math"
 	"os"
 	"os/exec"
@@ -72,6 +73,7 @@ var (
 	allFlag       bool
 	longFlag      bool
 	reverseFlag   bool
+	oneEntryFlag  bool
 	dirsFirstFlag bool
 	gitFlag       bool
 	sortFlag      sortBy
@@ -106,6 +108,7 @@ options:
   -a          do not ignore entries starting with .
   -l          use a long listing format
   -r          reverse order while sorting
+  -1          display one entry per line
   -dirsfirst  show directories above regular files
   -git        display git status
   -sort WORD  one of: name, extension, size, time, git (default: name)
@@ -124,12 +127,13 @@ func main() {
 	flag.BoolVar(&allFlag, "a", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
 	flag.BoolVar(&reverseFlag, "r", false, "")
+	flag.BoolVar(&oneEntryFlag, "1", false, "")
 	flag.BoolVar(&dirsFirstFlag, "dirsfirst", dirsFirstFlag, "")
 	flag.BoolVar(&gitFlag, "git", gitFlag, "")
 	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-dirsfirst] [-git] [-sort WORD] [file ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -388,20 +392,13 @@ func printEntries(ents []entry) {
 	if len(ents) == 0 {
 		return
 	}
-	if longFlag {
+	switch {
+	case longFlag:
 		printLong(ents)
-	} else {
+	case oneEntryFlag:
+		print1PerLine(ents)
+	default:
 		printShort(ents)
-	}
-}
-
-func printShort(ents []entry) {
-	for _, e := range ents {
-		name := e.name
-		if suffix := classify(e); suffix != 0 {
-			name += string(suffix)
-		}
-		fmt.Println(name)
 	}
 }
 
@@ -483,6 +480,62 @@ func printLong(ents []entry) {
 				r.nameStr,
 			)
 		}
+	}
+}
+
+func print1PerLine(ents []entry) {
+	for _, e := range ents {
+		name := e.name
+		if suffix := classify(e); suffix != 0 {
+			name += string(suffix)
+		}
+		fmt.Println(name)
+	}
+}
+
+func printShort(ents []entry) {
+	w, _, err := term.GetSize(int(os.Stdin.Fd()))
+	if err != nil {
+		showError(err)
+		os.Exit(1)
+	}
+
+	names := make([]string, len(ents))
+	nameWidth := 0
+
+	for i, e := range ents {
+		name := e.name
+		if suffix := classify(e); suffix != 0 {
+			name += string(suffix)
+		}
+		names[i] = name
+		if n := len(name); n > nameWidth {
+			nameWidth = n
+		}
+	}
+
+	n := len(names)
+	colWidth := nameWidth + 4
+	cols := min(max(w/colWidth, 1), n)
+
+	if cols == 1 {
+		for _, e := range names {
+			fmt.Println(e)
+		}
+		return
+	}
+
+	rows := (n + cols - 1) / cols
+
+	for r := range rows {
+		for c := range cols {
+			i := c*rows + r
+			if i >= n {
+				break
+			}
+			fmt.Printf("%-*s", colWidth, names[i])
+		}
+		fmt.Println()
 	}
 }
 

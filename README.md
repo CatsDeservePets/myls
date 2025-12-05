@@ -12,7 +12,7 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-a] [-l] [-r] [-dirsfirst] [-git] [-sort WORD] [file ...]
+usage: myls [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]
 
 positional arguments:
   file        files or directories to display
@@ -22,6 +22,7 @@ options:
   -a          do not ignore entries starting with .
   -l          use a long listing format
   -r          reverse order while sorting
+  -1          display one entry per line
   -dirsfirst  show directories above regular files
   -git        display git status
   -sort WORD  one of: name, extension, size, time, git (default: name)
