@@ -12,7 +12,7 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-a] [-l] [-r] [-dirsfirst] [-sort WORD] [file ...]
+usage: myls [-h] [-a] [-l] [-r] [-dirsfirst] [-git] [-sort WORD] [file ...]
 
 positional arguments:
   file        files or directories to display
@@ -23,13 +23,21 @@ options:
   -l          use a long listing format
   -r          reverse order while sorting
   -dirsfirst  show directories above regular files
+  -git        display git status
   -sort WORD  one of: name, extension, size, time, git (default: name)
+
+environment:
+  MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
+              used to specify the time format for non-recent and recent files
+  MYLS_DIRS_FIRST
+              if set, behaves like -dirsfirst
+  MYLS_GIT    if set, behaves like -git
 ```
 
 ## Example output
 
 ```
-$ ./myls -l -a
+$ ./myls -l -a -git
 drwxr-xr-x    8 Nov 25 17:42 -- ./
 drwxr-xr-x   31 Nov 24 00:28 -- ../
 drwxr-xr-x   14 Nov 25 17:42 -- .git/
@@ -43,7 +51,7 @@ drwxr-xr-x   14 Nov 25 17:42 -- .git/
 ```
 
 ```
-C:\Programming\myls> .\myls.exe -l -a
+C:\Programming\myls> .\myls.exe -l -a -git
 d----    8 Nov 25 17:42 -- .\
 d----   31 Nov 24 00:28 -- ..\
 d--h-   14 Nov 25 17:42 -- .git\
