@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"golang.org/x/term"
 	"math"
 	"os"
 	"os/exec"
@@ -14,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/term"
 )
 
 type entry struct {
@@ -82,6 +83,7 @@ var (
 var (
 	timeFmtOld string
 	timeFmtNew string
+	termWidth  int
 )
 
 func init() {
@@ -89,6 +91,8 @@ func init() {
 	timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
 	_, dirsFirstFlag = os.LookupEnv("MYLS_DIRS_FIRST")
 	_, gitFlag = os.LookupEnv("MYLS_GIT")
+	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	termWidth = cmp.Or(width, 80)
 }
 
 var (
@@ -96,6 +100,8 @@ var (
 	gitRepos   = map[string]map[string]string{}
 	currYear   = time.Now().Year()
 )
+
+const tabWidth = 8
 
 const helpMessage = `
 myls - My interpretation of the ls(1) command
@@ -494,29 +500,24 @@ func print1PerLine(ents []entry) {
 }
 
 func printShort(ents []entry) {
-	w, _, err := term.GetSize(int(os.Stdin.Fd()))
-	if err != nil {
-		showError(err)
-		os.Exit(1)
-	}
-
-	names := make([]string, len(ents))
+	entryCount := len(ents)
+	names := make([]string, entryCount)
 	nameWidth := 0
 
 	for i, e := range ents {
 		name := e.name
+		if n := len(name); n > nameWidth {
+			nameWidth = n
+		}
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 		}
 		names[i] = name
-		if n := len(name); n > nameWidth {
-			nameWidth = n
-		}
 	}
 
-	n := len(names)
-	colWidth := nameWidth + 4
-	cols := min(max(w/colWidth, 1), n)
+	nameWidth += 1 // Account for (possible) classification
+	colTabs := nameWidth/tabWidth + 1
+	cols := min(max(termWidth/(colTabs*tabWidth), 1), entryCount)
 
 	if cols == 1 {
 		for _, e := range names {
@@ -525,15 +526,24 @@ func printShort(ents []entry) {
 		return
 	}
 
-	rows := (n + cols - 1) / cols
+	rows := (entryCount + cols - 1) / cols
 
 	for r := range rows {
 		for c := range cols {
 			i := c*rows + r
-			if i >= n {
+			if i >= entryCount {
 				break
 			}
-			fmt.Printf("%-*s", colWidth, names[i])
+
+			s := names[i]
+			fmt.Print(s)
+
+			if c == cols-1 || i+rows >= entryCount {
+				continue
+			}
+
+			tabs := max(colTabs-len(s)/tabWidth, 1)
+			fmt.Print(strings.Repeat("\t", tabs))
 		}
 		fmt.Println()
 	}
