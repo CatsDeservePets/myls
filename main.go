@@ -73,8 +73,21 @@ var (
 	longFlag      bool
 	reverseFlag   bool
 	dirsFirstFlag bool
+	gitFlag       bool
 	sortFlag      sortBy
 )
+
+var (
+	timeFmtOld string
+	timeFmtNew string
+)
+
+func init() {
+	timeFmtOld = cmp.Or(os.Getenv("MYLS_TIMEFMT_OLD"), "Jan _2  2006")
+	timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
+	_, dirsFirstFlag = os.LookupEnv("MYLS_DIRS_FIRST")
+	_, gitFlag = os.LookupEnv("MYLS_GIT")
+}
 
 var (
 	dirEntries = map[string][]entry{}
@@ -94,7 +107,15 @@ options:
   -l          use a long listing format
   -r          reverse order while sorting
   -dirsfirst  show directories above regular files
+  -git        display git status
   -sort WORD  one of: name, extension, size, time, git (default: name)
+
+environment:
+  MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
+              used to specify the time format for non-recent and recent files
+  MYLS_DIRS_FIRST
+              if set, behaves like -dirsfirst
+  MYLS_GIT    if set, behaves like -git
 `
 
 func main() {
@@ -103,11 +124,12 @@ func main() {
 	flag.BoolVar(&allFlag, "a", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
 	flag.BoolVar(&reverseFlag, "r", false, "")
-	flag.BoolVar(&dirsFirstFlag, "dirsfirst", false, "")
+	flag.BoolVar(&dirsFirstFlag, "dirsfirst", dirsFirstFlag, "")
+	flag.BoolVar(&gitFlag, "git", gitFlag, "")
 	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-dirsfirst] [-sort WORD] [file ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-dirsfirst] [-git] [-sort WORD] [file ...]\n", os.Args[0])
 	}
 	flag.Parse()
 
@@ -160,7 +182,7 @@ func main() {
 	hasOutput := len(files) > 0
 	showDirName := len(files) > 0 || len(dirs) > 1
 
-	if longFlag {
+	if longFlag && gitFlag {
 		attachGit(files)
 	}
 	sort(files)
@@ -179,7 +201,7 @@ func main() {
 		if err != nil {
 			showError(err)
 		}
-		if longFlag {
+		if longFlag && gitFlag {
 			attachGit(ents)
 		}
 		if allFlag {
@@ -488,9 +510,9 @@ func humanReadable(size int64) string {
 
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
-		return t.Format("Jan _2 15:04")
+		return t.Format(timeFmtNew)
 	}
-	return t.Format("Jan _2  2006")
+	return t.Format(timeFmtOld)
 }
 
 func showError(e error) {
