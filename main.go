@@ -150,45 +150,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	args := flag.Args()
-	if len(args) == 0 {
-		args = []string{"."}
-	}
-
-	var files, dirs []entry
-
-	for _, pattern := range args {
-		paths := []string{pattern}
-		// Windows does not expand shell globs automatically
-		if matches, err := filepath.Glob(pattern); err == nil && len(matches) > 0 {
-			paths = matches
-		}
-
-		for _, p := range paths {
-			info, err := os.Lstat(p)
-			if err != nil {
-				showError(err)
-				continue
-			}
-
-			abs := p
-			if a, err := filepath.Abs(p); err == nil {
-				abs = a
-			}
-			ent := entry{
-				name: p,
-				path: abs,
-				info: info,
-			}
-			if info.IsDir() {
-				// Prefer entry type over string to simplify sorting.
-				dirs = append(dirs, ent)
-			} else {
-				files = append(files, ent)
-			}
-		}
-	}
-
+	files, dirs := collectEntries(flag.Args())
 	if len(dirs) == 0 && len(files) == 0 {
 		os.Exit(1)
 	}
@@ -228,6 +190,45 @@ func main() {
 		printEntries(ents)
 		hasOutput = true
 	}
+}
+
+func collectEntries(args []string) (files, dirs []entry) {
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+
+	for _, pattern := range args {
+		paths := []string{pattern}
+		// Windows does not expand shell globs automatically
+		if matches, err := filepath.Glob(pattern); err == nil && len(matches) > 0 {
+			paths = matches
+		}
+
+		for _, p := range paths {
+			info, err := os.Lstat(p)
+			if err != nil {
+				showError(err)
+				continue
+			}
+
+			abs := p
+			if a, err := filepath.Abs(p); err == nil {
+				abs = a
+			}
+			ent := entry{
+				name: p,
+				path: abs,
+				info: info,
+			}
+			if info.IsDir() {
+				// Prefer entry type over string to simplify sorting.
+				dirs = append(dirs, ent)
+			} else {
+				files = append(files, ent)
+			}
+		}
+	}
+	return files, dirs
 }
 
 func sortEntries(ents []entry) {
