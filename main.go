@@ -18,10 +18,10 @@ import (
 )
 
 type entry struct {
-	name string
-	path string
-	info os.FileInfo
-	git  string
+	name      string
+	path      string
+	info      os.FileInfo
+	gitStatus string
 }
 
 type sortBy int
@@ -34,8 +34,8 @@ const (
 	git
 )
 
-func (s *sortBy) Set(cmp string) error {
-	switch cmp {
+func (s *sortBy) Set(val string) error {
+	switch val {
 	case "name":
 		*s = name
 	case "ext", "extension":
@@ -103,6 +103,8 @@ var (
 
 const tabWidth = 8
 
+const usageLine = "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
+
 const helpMessage = `
 myls - My interpretation of the ls(1) command
 
@@ -139,7 +141,7 @@ func main() {
 	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), usageLine, os.Args[0])
 	}
 	flag.Parse()
 
@@ -176,7 +178,11 @@ func main() {
 			if a, err := filepath.Abs(p); err == nil {
 				abs = a
 			}
-			ent := entry{p, abs, info, ""}
+			ent := entry{
+				name: p,
+				path: abs,
+				info: info,
+			}
 			if info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
 				dirs = append(dirs, ent)
@@ -195,16 +201,18 @@ func main() {
 	if longFlag && gitFlag {
 		attachGit(files)
 	}
-	sort(files)
+	sortEntries(files)
 	printEntries(files)
 
-	sort(dirs)
+	sortEntries(dirs)
 	for _, d := range dirs {
 		if hasOutput {
-			fmt.Println() // Separate directory listing from previous output.
+			// Separate directory listing from previous output.
+			fmt.Println()
 		}
 		if showDirName {
-			fmt.Printf("%s:\n", d.name) // Label directory when multiple sections exist.
+			// Label directory when multiple sections exist.
+			fmt.Printf("%s:\n", d.name)
 		}
 
 		ents, err := readDir(d.path)
@@ -219,20 +227,21 @@ func main() {
 		} else {
 			ents = slices.DeleteFunc(ents, isHidden)
 		}
-		sort(ents)
+		sortEntries(ents)
 		printEntries(ents)
 		hasOutput = true
 	}
 }
 
-func sort(ents []entry) {
-	// Always sort by name first
+func sortEntries(ents []entry) {
+	// Always sort by name first.
 	slices.SortFunc(ents, func(a, b entry) int {
 		if reverseFlag {
 			return strings.Compare(strings.ToLower(b.name), strings.ToLower(a.name))
 		}
 		return strings.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
 	})
+
 	switch sortFlag {
 	case extension:
 		slices.SortStableFunc(ents, func(a, b entry) int {
@@ -241,8 +250,6 @@ func sort(ents []entry) {
 			}
 			return strings.Compare(strings.ToLower(filepath.Ext(a.name)), strings.ToLower(filepath.Ext(b.name)))
 		})
-	case name:
-		// We already did that, why would we do that again?
 	case size:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if reverseFlag {
@@ -260,11 +267,12 @@ func sort(ents []entry) {
 	case git:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if reverseFlag {
-				return strings.Compare(strings.ToLower(b.git), strings.ToLower(a.git))
+				return strings.Compare(strings.ToLower(b.gitStatus), strings.ToLower(a.gitStatus))
 			}
-			return strings.Compare(strings.ToLower(a.git), strings.ToLower(b.git))
+			return strings.Compare(strings.ToLower(a.gitStatus), strings.ToLower(b.gitStatus))
 		})
 	}
+
 	if dirsFirstFlag {
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if a.info.IsDir() == b.info.IsDir() {
@@ -285,7 +293,11 @@ func selfAndParent(dir string) []entry {
 		if info, err := os.Lstat(full); err != nil {
 			showError(err)
 		} else {
-			ents = append(ents, entry{name, full, info, ""})
+			ents = append(ents, entry{
+				name: name,
+				path: full,
+				info: info,
+			})
 		}
 	}
 	return ents
@@ -317,7 +329,11 @@ func readDir(path string) ([]entry, error) {
 		}
 		name := de.Name()
 		full := filepath.Join(path, name)
-		ents = append(ents, entry{name, full, info, ""})
+		ents = append(ents, entry{
+			name: name,
+			path: full,
+			info: info,
+		})
 	}
 	dirEntries[clean] = ents
 
@@ -337,7 +353,7 @@ func attachGit(ents []entry) {
 			continue
 		}
 		if signs, ok := stats[ents[i].path]; ok {
-			ents[i].git = strings.ReplaceAll(signs, " ", "-")
+			ents[i].gitStatus = strings.ReplaceAll(signs, " ", "-")
 		}
 	}
 }
@@ -356,13 +372,12 @@ func gitStatusesForDir(dir string) map[string]string {
 		"status", "--porcelain=v1", "-z", "--ignored",
 	)
 	out, err := cmd.Output()
-
-	stats := make(map[string]string)
 	if err != nil {
-		gitRepos[root] = stats
-		return stats
+		gitRepos[root] = nil
+		return nil
 	}
 
+	stats := make(map[string]string)
 	for rec := range bytes.SplitSeq(out, []byte{0}) {
 		// skip invalid status (e.g. second part of rename entry)
 		if len(rec) < 4 || rec[2] != ' ' {
@@ -435,8 +450,8 @@ func printLong(ents []entry) {
 
 		var sizeStr string
 		if e.info.IsDir() {
-			if ents, err := readDir(e.path); err == nil {
-				sizeStr = fmt.Sprintf("%d", len(ents))
+			if children, err := readDir(e.path); err == nil {
+				sizeStr = fmt.Sprintf("%d", len(children))
 			} else {
 				sizeStr = "!"
 			}
@@ -452,7 +467,7 @@ func printLong(ents []entry) {
 			timeWidth = n
 		}
 
-		gitStr := e.git
+		gitStr := e.gitStatus
 		if n := len(gitStr); n > gitWidth {
 			gitWidth = n
 		}
@@ -520,8 +535,8 @@ func printShort(ents []entry) {
 	cols := min(max(termWidth/(colTabs*tabWidth), 1), entryCount)
 
 	if cols == 1 {
-		for _, e := range names {
-			fmt.Println(e)
+		for _, n := range names {
+			fmt.Println(n)
 		}
 		return
 	}
