@@ -17,6 +17,35 @@ import (
 	"golang.org/x/term"
 )
 
+const (
+	tabWidth  = 8
+	usageLine = "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
+)
+
+const helpMessage = `
+myls - My interpretation of the ls(1) command
+
+positional arguments:
+  file        files or directories to display
+
+options:
+  -h, -help   show this help message and exit
+  -a          do not ignore entries starting with .
+  -l          use a long listing format
+  -r          reverse order while sorting
+  -1          display one entry per line
+  -dirsfirst  show directories above regular files
+  -git        display git status
+  -sort WORD  one of: name, extension, size, time, git (default: name)
+
+environment:
+  MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
+              used to specify the time format for non-recent and recent files
+  MYLS_DIRS_FIRST
+              if set, behaves like -dirsfirst
+  MYLS_GIT    if set, behaves like -git
+`
+
 type entry struct {
 	name      string
 	path      string
@@ -78,12 +107,14 @@ var (
 	dirsFirstFlag bool
 	gitFlag       bool
 	sortFlag      sortBy
-)
 
-var (
 	timeFmtOld string
 	timeFmtNew string
 	termWidth  int
+
+	dirEntries = map[string][]entry{}
+	gitRepos   = map[string]map[string]string{}
+	currYear   = time.Now().Year()
 )
 
 func init() {
@@ -94,40 +125,6 @@ func init() {
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	termWidth = cmp.Or(width, 80)
 }
-
-var (
-	dirEntries = map[string][]entry{}
-	gitRepos   = map[string]map[string]string{}
-	currYear   = time.Now().Year()
-)
-
-const tabWidth = 8
-
-const usageLine = "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
-
-const helpMessage = `
-myls - My interpretation of the ls(1) command
-
-positional arguments:
-  file        files or directories to display
-
-options:
-  -h, -help   show this help message and exit
-  -a          do not ignore entries starting with .
-  -l          use a long listing format
-  -r          reverse order while sorting
-  -1          display one entry per line
-  -dirsfirst  show directories above regular files
-  -git        display git status
-  -sort WORD  one of: name, extension, size, time, git (default: name)
-
-environment:
-  MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
-              used to specify the time format for non-recent and recent files
-  MYLS_DIRS_FIRST
-              if set, behaves like -dirsfirst
-  MYLS_GIT    if set, behaves like -git
-`
 
 func main() {
 	flag.BoolVar(&helpFlag, "h", false, "")
