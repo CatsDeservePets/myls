@@ -115,6 +115,7 @@ var (
 	dirEntries = map[string][]entry{}
 	gitRepos   = map[string]map[string]string{}
 	currYear   = time.Now().Year()
+	homeDir, _ = os.UserHomeDir()
 )
 
 func init() {
@@ -170,8 +171,9 @@ func main() {
 			fmt.Println()
 		}
 		if showDirName {
-			// Label directory when multiple sections exist.
-			fmt.Printf("%s:\n", d.name)
+			// If output has multiple sections, label directory
+			// using the user-supplied path (abbreviated with ~).
+			fmt.Printf("%s:\n", tildePath(d.name))
 		}
 
 		ents, err := readDir(d.path)
@@ -589,6 +591,20 @@ func formatTime(t time.Time) string {
 		return t.Format(timeFmtNew)
 	}
 	return t.Format(timeFmtOld)
+}
+
+func tildePath(path string) string {
+	switch {
+	case homeDir == "" || !filepath.IsAbs(path):
+		return path
+	case path == homeDir:
+		return "~"
+	default:
+		if after, ok := strings.CutPrefix(path, homeDir); ok {
+			return "~" + after
+		}
+		return path
+	}
 }
 
 func showError(e error) {
