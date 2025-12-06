@@ -19,7 +19,7 @@ import (
 
 const (
 	tabWidth  = 8
-	usageLine = "usage: %s [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
+	usageLine = "usage: %s [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
 )
 
 const helpMessage = `
@@ -31,6 +31,7 @@ positional arguments:
 options:
   -h, -help   show this help message and exit
   -a          do not ignore entries starting with .
+  -d          list directories themselves, not their contents
   -l          use a long listing format
   -r          reverse order while sorting
   -1          display one entry per line
@@ -101,6 +102,7 @@ func (s sortBy) String() string {
 var (
 	helpFlag      bool
 	allFlag       bool
+	dirFlag       bool
 	longFlag      bool
 	reverseFlag   bool
 	oneEntryFlag  bool
@@ -131,6 +133,7 @@ func main() {
 	flag.BoolVar(&helpFlag, "h", false, "")
 	flag.BoolVar(&helpFlag, "help", false, "")
 	flag.BoolVar(&allFlag, "a", false, "")
+	flag.BoolVar(&dirFlag, "d", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
 	flag.BoolVar(&reverseFlag, "r", false, "")
 	flag.BoolVar(&oneEntryFlag, "1", false, "")
@@ -220,7 +223,7 @@ func collectEntries(args []string) (files, dirs []entry) {
 				path: abs,
 				info: info,
 			}
-			if info.IsDir() {
+			if !dirFlag && info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
 				dirs = append(dirs, ent)
 			} else {

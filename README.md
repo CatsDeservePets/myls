@@ -12,7 +12,7 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-a] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]
+usage: myls [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]
 
 positional arguments:
   file        files or directories to display
@@ -20,6 +20,7 @@ positional arguments:
 options:
   -h, -help   show this help message and exit
   -a          do not ignore entries starting with .
+  -d          list directories themselves, not their contents
   -l          use a long listing format
   -r          reverse order while sorting
   -1          display one entry per line
