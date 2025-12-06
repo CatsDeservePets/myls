@@ -155,8 +155,7 @@ func main() {
 	if len(dirs) == 0 && len(files) == 0 {
 		os.Exit(1)
 	}
-	hasOutput := len(files) > 0
-	showDirName := len(files) > 0 || len(dirs) > 1
+	showDirHeader := len(files) > 0 || len(dirs) > 1
 
 	if longFlag && gitFlag {
 		attachGit(files)
@@ -165,12 +164,12 @@ func main() {
 	printEntries(files)
 
 	sortEntries(dirs)
-	for _, d := range dirs {
-		if hasOutput {
+	for i, d := range dirs {
+		if i > 0 || len(files) > 0 {
 			// Separate directory listing from previous output.
 			fmt.Println()
 		}
-		if showDirName {
+		if showDirHeader {
 			// If output has multiple sections, label directory
 			// using the user-supplied path (abbreviated with ~).
 			fmt.Printf("%s:\n", tildePath(d.name))
@@ -190,7 +189,6 @@ func main() {
 		}
 		sortEntries(ents)
 		printEntries(ents)
-		hasOutput = true
 	}
 }
 
