@@ -126,7 +126,7 @@ func init() {
 	_, dirsFirstFlag = os.LookupEnv("MYLS_DIRS_FIRST")
 	_, gitFlag = os.LookupEnv("MYLS_GIT")
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
-	termWidth = cmp.Or(width, 80)
+	termWidth = cmp.Or(width, 80) // Fallback for non-terminal output etc.
 }
 
 func main() {
@@ -201,9 +201,11 @@ func collectEntries(args []string) (files, dirs []entry) {
 	}
 
 	for _, pattern := range args {
+		// Windows does not expand shell globs automatically,
+		// so we start by treating patterns as literal paths.
 		paths := []string{pattern}
-		// Windows does not expand shell globs automatically
-		if matches, err := filepath.Glob(pattern); err == nil && len(matches) > 0 {
+		// Override the literal path when globbing succeeds.
+		if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
 			paths = matches
 		}
 
@@ -444,17 +446,20 @@ func printLong(ents []entry) {
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 			if suffix == '@' {
-				target, _ := os.Readlink(e.path)
-				name += " -> " + target
+				if target, err := os.Readlink(e.path); err != nil {
+					showError(err)
+				} else {
+					name += " -> " + target
+				}
 			}
 		}
 
 		var sizeStr string
 		if e.info.IsDir() {
-			if children, err := readDir(e.path); err == nil {
-				sizeStr = fmt.Sprintf("%d", len(children))
-			} else {
+			if children, err := readDir(e.path); err != nil {
 				sizeStr = "!"
+			} else {
+				sizeStr = fmt.Sprintf("%d", len(children))
 			}
 		} else {
 			sizeStr = humanReadable(e.info.Size())
