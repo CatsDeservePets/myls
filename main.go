@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/term"
@@ -115,6 +116,8 @@ var (
 	termWidth  int
 
 	gitRepos   = map[string]map[string]string{}
+	gitReposMu sync.Mutex
+
 	currYear   = time.Now().Year()
 	homeDir, _ = os.UserHomeDir()
 )
@@ -166,6 +169,33 @@ func main() {
 	printEntries(files)
 
 	sortEntries(dirs)
+
+	dirEntries := make([][]entry, len(dirs))
+	var wg sync.WaitGroup
+
+	for i, d := range dirs {
+		wg.Go(func() {
+			ents, err := readDir(d.path)
+			if err != nil {
+				showError(err)
+				dirEntries[i] = nil
+				return
+			}
+			if longFlag && gitFlag {
+				attachGit(ents)
+			}
+			if allFlag {
+				ents = append(selfAndParent(d.path), ents...)
+			} else {
+				ents = slices.DeleteFunc(ents, isHidden)
+			}
+			sortEntries(ents)
+			dirEntries[i] = ents
+		})
+	}
+
+	wg.Wait()
+
 	for i, d := range dirs {
 		if i > 0 || len(files) > 0 {
 			// Separate directory listing from previous output.
@@ -176,21 +206,7 @@ func main() {
 			// using the user-supplied path (abbreviated with ~).
 			fmt.Printf("%s:\n", tildePath(d.name))
 		}
-
-		ents, err := readDir(d.path)
-		if err != nil {
-			showError(err)
-		}
-		if longFlag && gitFlag {
-			attachGit(ents)
-		}
-		if allFlag {
-			ents = append(selfAndParent(d.path), ents...)
-		} else {
-			ents = slices.DeleteFunc(ents, isHidden)
-		}
-		sortEntries(ents)
-		printEntries(ents)
+		printEntries(dirEntries[i])
 	}
 }
 
@@ -369,9 +385,13 @@ func gitStatusesForDir(dir string) map[string]string {
 	if root == "" {
 		return nil
 	}
+
+	gitReposMu.Lock()
 	if st, ok := gitRepos[root]; ok {
+		gitReposMu.Unlock()
 		return st
 	}
+	gitReposMu.Unlock()
 
 	cmd := exec.Command(
 		"git", "-C", root,
@@ -379,7 +399,9 @@ func gitStatusesForDir(dir string) map[string]string {
 	)
 	out, err := cmd.Output()
 	if err != nil {
+		gitReposMu.Lock()
 		gitRepos[root] = nil
+		gitReposMu.Unlock()
 		return nil
 	}
 
@@ -396,7 +418,10 @@ func gitStatusesForDir(dir string) map[string]string {
 
 		stats[full] = signs
 	}
+
+	gitReposMu.Lock()
 	gitRepos[root] = stats
+	gitReposMu.Unlock()
 
 	return stats
 }
