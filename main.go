@@ -114,7 +114,6 @@ var (
 	timeFmtNew string
 	termWidth  int
 
-	dirEntries = map[string][]entry{}
 	gitRepos   = map[string]map[string]string{}
 	currYear   = time.Now().Year()
 	homeDir, _ = os.UserHomeDir()
@@ -307,11 +306,6 @@ func selfAndParent(dir string) []entry {
 }
 
 func readDir(path string) ([]entry, error) {
-	clean := filepath.Clean(path)
-	if ents, ok := dirEntries[clean]; ok {
-		return ents, nil
-	}
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -338,9 +332,18 @@ func readDir(path string) ([]entry, error) {
 			info: info,
 		})
 	}
-	dirEntries[clean] = ents
 
 	return ents, nil
+}
+
+func readDirNames(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return f.Readdirnames(-1)
 }
 
 func attachGit(ents []entry) {
@@ -456,7 +459,7 @@ func printLong(ents []entry) {
 
 		var sizeStr string
 		if e.info.IsDir() {
-			if children, err := readDir(e.path); err != nil {
+			if children, err := readDirNames(e.path); err != nil {
 				sizeStr = "!"
 			} else {
 				sizeStr = fmt.Sprintf("%d", len(children))
