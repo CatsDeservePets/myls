@@ -163,7 +163,7 @@ func main() {
 	showDirHeader := len(files) > 0 || len(dirs) > 1
 
 	if longFlag && gitFlag {
-		attachGit(files)
+		attachGitToFiles(files)
 	}
 	sortEntries(files)
 	printEntries(files)
@@ -182,7 +182,7 @@ func main() {
 				return
 			}
 			if longFlag && gitFlag {
-				attachGit(ents)
+				attachGitToDir(d.path, ents)
 			}
 			if allFlag {
 				ents = append(selfAndParent(d.path), ents...)
@@ -362,10 +362,16 @@ func readDirNames(path string) ([]string, error) {
 	return f.Readdirnames(-1)
 }
 
-func attachGit(ents []entry) {
+func attachGitToFiles(ents []entry) {
 	dirCache := make(map[string]map[string]string)
 	for i := range ents {
-		dir := filepath.Dir(ents[i].path)
+		e := &ents[i]
+		dir := filepath.Dir(e.path)
+		if e.info.IsDir() {
+			// For directory entries (e.g. with -d), use directory itself as root.
+			dir = e.path
+		}
+
 		stats, ok := dirCache[dir]
 		if !ok {
 			stats = gitStatusesForDir(dir)
@@ -374,13 +380,38 @@ func attachGit(ents []entry) {
 		if stats == nil {
 			continue
 		}
-		if signs, ok := stats[ents[i].path]; ok {
-			ents[i].gitStatus = strings.ReplaceAll(signs, " ", "-")
+		if signs, ok := stats[e.path]; ok {
+			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
+		}
+	}
+}
+
+func attachGitToDir(dir string, ents []entry) {
+	stats := gitStatusesForDir(dir)
+	if stats == nil {
+		return
+	}
+
+	for i := range ents {
+		e := &ents[i]
+		if signs, ok := stats[e.path]; ok {
+			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
 		}
 	}
 }
 
 func gitStatusesForDir(dir string) map[string]string {
+	priority := func(signs string) int {
+		switch signs {
+		case "!!":
+			return 1
+		case "??":
+			return 2
+		default:
+			return 3
+		}
+	}
+
 	root := gitRoot(dir)
 	if root == "" {
 		return nil
@@ -416,7 +447,29 @@ func gitStatusesForDir(dir string) map[string]string {
 		rel = filepath.FromSlash(rel)
 		full := filepath.Join(root, rel)
 
-		stats[full] = signs
+		if prev, ok := stats[full]; !ok || priority(prev) < priority(signs) {
+			stats[full] = signs
+		}
+
+		// propagate "highest" status to all parent dirs
+		dirPath := filepath.Dir(full)
+		for {
+			if len(dirPath) < len(root) {
+				break
+			}
+			prev, ok := stats[dirPath]
+			if !ok || priority(prev) < priority(signs) {
+				stats[dirPath] = signs
+			}
+			if dirPath == root {
+				break
+			}
+			parent := filepath.Dir(dirPath)
+			if parent == dirPath {
+				break
+			}
+			dirPath = parent
+		}
 	}
 
 	gitReposMu.Lock()
