@@ -20,7 +20,9 @@ import (
 
 const (
 	tabWidth  = 8
-	usageLine = "usage: %s [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]\n"
+	usageLine = `usage: %s [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
+            [-sort WORD] [file ...]
+`
 )
 
 const helpMessage = `
@@ -120,6 +122,7 @@ var (
 
 	currYear   = time.Now().Year()
 	homeDir, _ = os.UserHomeDir()
+	progName   = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
 )
 
 func init() {
@@ -144,7 +147,7 @@ func main() {
 	flag.Var(&sortFlag, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
-		fmt.Fprintf(flag.CommandLine.Output(), usageLine, os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), usageLine, progName)
 	}
 	flag.Parse()
 
@@ -695,5 +698,5 @@ func tildePath(path string) string {
 }
 
 func showError(e error) {
-	fmt.Fprintf(os.Stderr, "%s: %v\n", os.Args[0], e)
+	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)
 }

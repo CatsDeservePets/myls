@@ -12,7 +12,8 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git] [-sort WORD] [file ...]
+usage: myls [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
+            [-sort WORD] [file ...]
 
 positional arguments:
   file        files or directories to display
