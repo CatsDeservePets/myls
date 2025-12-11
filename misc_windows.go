@@ -9,6 +9,21 @@ import (
 	"syscall"
 )
 
+var execExts = map[string]bool{}
+
+func init() {
+	s := os.Getenv("PATHEXT")
+	if s == "" {
+		s = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.CPL"
+	}
+	for ext := range strings.SplitSeq(s, ";") {
+		if ext == "" {
+			continue
+		}
+		execExts[strings.ToLower(ext)] = true
+	}
+}
+
 // mode returns a Powershell-style string representation for the file info.
 // See https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem
 // and https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-item
@@ -53,15 +68,19 @@ func classify(e entry) rune {
 		return os.PathSeparator
 	case m&os.ModeNamedPipe != 0:
 		return '|'
-	}
-
-	ext := strings.ToLower(filepath.Ext(e.name))
-	switch ext {
-	case ".exe", ".msi", ".cmd", ".bat", ".ps1":
+	case isExecutable(e):
 		return '*'
 	default:
 		return 0
 	}
+}
+
+func isExecutable(e entry) bool {
+	if e.info.IsDir() {
+		return false
+	}
+	_, ok := execExts[strings.ToLower(filepath.Ext(e.name))]
+	return ok
 }
 
 func isHidden(e entry) bool {
