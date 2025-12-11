@@ -296,13 +296,15 @@ func sortEntries(ents []entry) {
 
 	if dirsFirstFlag {
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			if a.info.IsDir() == b.info.IsDir() {
+			ad, bd := isDir(a), isDir(b)
+			switch {
+			case ad == bd:
 				return 0
-			}
-			if a.info.IsDir() {
+			case ad:
 				return -1
+			default:
+				return 1
 			}
-			return 1
 		})
 	}
 }
@@ -539,7 +541,7 @@ func printLong(ents []entry) {
 		}
 
 		var sizeStr string
-		if e.info.IsDir() {
+		if isDir(e) {
 			if children, err := readDirNames(e.path); err != nil {
 				sizeStr = "!"
 			} else {
@@ -652,6 +654,19 @@ func printShort(ents []entry) {
 		}
 		fmt.Println()
 	}
+}
+
+// currently only used for better dircounts and directory grouping
+func isDir(e entry) bool {
+	if e.info.IsDir() {
+		return true
+	}
+	if e.info.Mode()&os.ModeSymlink != 0 {
+		if info, err := os.Stat(e.path); err == nil {
+			return info.IsDir()
+		}
+	}
+	return false
 }
 
 func humanReadable(size int64) string {
