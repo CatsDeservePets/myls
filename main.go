@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -20,7 +21,7 @@ import (
 
 const (
 	tabWidth  = 8
-	usageLine = `usage: %s [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
+	usageLine = `usage: %s [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
             [-sort WORD] [file ...]
 `
 )
@@ -29,25 +30,26 @@ const helpMessage = `
 myls - My interpretation of the ls(1) command
 
 positional arguments:
-  file        files or directories to display
+  file          files or directories to display
 
 options:
-  -h, -help   show this help message and exit
-  -a          do not ignore entries starting with .
-  -d          list directories themselves, not their contents
-  -l          use a long listing format
-  -r          reverse order while sorting
-  -1          display one entry per line
-  -dirsfirst  show directories above regular files
-  -git        display git status
-  -sort WORD  one of: name, extension, size, time, git (default: name)
+  -h, -help     show this help message and exit
+  -V, -version  show program's version number and exit
+  -a            do not ignore entries starting with .
+  -d            list directories themselves, not their contents
+  -l            use a long listing format
+  -r            reverse order while sorting
+  -1            display one entry per line
+  -dirsfirst    show directories above regular files
+  -git          display git status
+  -sort WORD    one of: name, extension, size, time, git (default: name)
 
 environment:
   MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
-              used to specify the time format for non-recent and recent files
+                used to specify the time format for non-recent and recent files
   MYLS_DIRS_FIRST
-              if set, behaves like -dirsfirst
-  MYLS_GIT    if set, behaves like -git
+                if set, behaves like -dirsfirst
+  MYLS_GIT      if set, behaves like -git
 `
 
 type entry struct {
@@ -104,6 +106,7 @@ func (s sortBy) String() string {
 
 var (
 	helpFlag      bool
+	versionFlag   bool
 	allFlag       bool
 	dirFlag       bool
 	longFlag      bool
@@ -137,6 +140,8 @@ func init() {
 func main() {
 	flag.BoolVar(&helpFlag, "h", false, "")
 	flag.BoolVar(&helpFlag, "help", false, "")
+	flag.BoolVar(&versionFlag, "V", false, "")
+	flag.BoolVar(&versionFlag, "version", false, "")
 	flag.BoolVar(&allFlag, "a", false, "")
 	flag.BoolVar(&dirFlag, "d", false, "")
 	flag.BoolVar(&longFlag, "l", false, "")
@@ -156,6 +161,10 @@ func main() {
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.Usage()
 		fmt.Fprint(os.Stdout, helpMessage)
+		os.Exit(0)
+	}
+	if versionFlag {
+		fmt.Println(version())
 		os.Exit(0)
 	}
 
@@ -708,4 +717,12 @@ func tildePath(path string) string {
 
 func showError(e error) {
 	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)
+}
+
+func version() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return progName + " unknown"
+	}
+	return fmt.Sprintf("%s %s", progName, bi.Main.Version)
 }

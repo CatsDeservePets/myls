@@ -12,29 +12,30 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
+usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
             [-sort WORD] [file ...]
 
 positional arguments:
-  file        files or directories to display
+  file          files or directories to display
 
 options:
-  -h, -help   show this help message and exit
-  -a          do not ignore entries starting with .
-  -d          list directories themselves, not their contents
-  -l          use a long listing format
-  -r          reverse order while sorting
-  -1          display one entry per line
-  -dirsfirst  show directories above regular files
-  -git        display git status
-  -sort WORD  one of: name, extension, size, time, git (default: name)
+  -h, -help     show this help message and exit
+  -V, -version  show program's version number and exit
+  -a            do not ignore entries starting with .
+  -d            list directories themselves, not their contents
+  -l            use a long listing format
+  -r            reverse order while sorting
+  -1            display one entry per line
+  -dirsfirst    show directories above regular files
+  -git          display git status
+  -sort WORD    one of: name, extension, size, time, git (default: name)
 
 environment:
   MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
-              used to specify the time format for non-recent and recent files
+                used to specify the time format for non-recent and recent files
   MYLS_DIRS_FIRST
-              if set, behaves like -dirsfirst
-  MYLS_GIT    if set, behaves like -git
+                if set, behaves like -dirsfirst
+  MYLS_GIT      if set, behaves like -git
 ```
 
 ## Example output
