@@ -381,10 +381,7 @@ func gitStatusesForDir(dir string) map[string]string {
 
 		// propagate "highest" status to all parent dirs
 		dirPath := filepath.Dir(full)
-		for {
-			if len(dirPath) < len(root) {
-				break
-			}
+		for len(dirPath) >= len(root) {
 			prev, ok := stats[dirPath]
 			if !ok || priority(prev) < priority(signs) {
 				stats[dirPath] = signs
