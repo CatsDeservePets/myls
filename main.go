@@ -573,26 +573,20 @@ func printLong(ents []entry) {
 		})
 	}
 
+	if gitWidth > 0 {
+		gitWidth++ // needs separation if visible
+	}
 	for _, r := range rows {
-		if gitWidth > 0 {
-			if r.gitStr == "" {
-				r.gitStr = "--"
-			}
-			fmt.Printf("%s %*s %-*s %-*s %s\n",
-				r.modeStr,
-				sizeWidth, r.sizeStr,
-				timeWidth, r.timeStr,
-				gitWidth, r.gitStr,
-				r.nameStr,
-			)
-		} else {
-			fmt.Printf("%s %*s %-*s %s\n",
-				r.modeStr,
-				sizeWidth, r.sizeStr,
-				timeWidth, r.timeStr,
-				r.nameStr,
-			)
+		if gitWidth > 0 && r.gitStr == "" {
+			r.gitStr = "--"
 		}
+		fmt.Printf("%s %*s %-*s%*s %s\n",
+			r.modeStr,
+			sizeWidth, r.sizeStr,
+			timeWidth, r.timeStr,
+			gitWidth, r.gitStr,
+			r.nameStr,
+		)
 	}
 }
 
