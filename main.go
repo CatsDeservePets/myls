@@ -71,16 +71,16 @@ func (s sortBy) String() string {
 }
 
 var (
+	progName   = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	homeDir, _ = os.UserHomeDir()
+	currYear   = time.Now().Year()
+
 	gitRepos   = map[string]map[string]string{}
 	gitReposMu sync.Mutex
-
-	currYear   = time.Now().Year()
-	homeDir, _ = os.UserHomeDir()
-	progName   = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
 )
 
 func main() {
-	parseFlags()
+	initOptions()
 
 	files, dirs := collectEntries(flag.Args())
 	if len(dirs) == 0 && len(files) == 0 {
@@ -88,7 +88,7 @@ func main() {
 	}
 	showDirHeader := len(files) > 0 || len(dirs) > 1
 
-	if longFlag && gitFlag {
+	if opt.long && opt.git {
 		attachGitToFiles(files)
 	}
 	sortEntries(files)
@@ -107,10 +107,10 @@ func main() {
 				dirEntries[i] = nil
 				return
 			}
-			if longFlag && gitFlag {
+			if opt.long && opt.git {
 				attachGitToDir(d.path, ents)
 			}
-			if allFlag {
+			if opt.all {
 				ents = append(selfAndParent(d.path), ents...)
 			} else {
 				ents = slices.DeleteFunc(ents, isHidden)
@@ -166,7 +166,7 @@ func collectEntries(args []string) (files, dirs []entry) {
 				path: abs,
 				info: info,
 			}
-			if !dirFlag && info.IsDir() {
+			if !opt.dir && info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
 				dirs = append(dirs, ent)
 			} else {
@@ -180,44 +180,44 @@ func collectEntries(args []string) (files, dirs []entry) {
 func sortEntries(ents []entry) {
 	// Always sort by name first.
 	slices.SortFunc(ents, func(a, b entry) int {
-		if reverseFlag {
+		if opt.reverse {
 			return strings.Compare(strings.ToLower(b.name), strings.ToLower(a.name))
 		}
 		return strings.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
 	})
 
-	switch sortFlag {
+	switch opt.sort {
 	case extension:
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			if reverseFlag {
+			if opt.reverse {
 				return strings.Compare(strings.ToLower(filepath.Ext(b.name)), strings.ToLower(filepath.Ext(a.name)))
 			}
 			return strings.Compare(strings.ToLower(filepath.Ext(a.name)), strings.ToLower(filepath.Ext(b.name)))
 		})
 	case size:
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			if reverseFlag {
+			if opt.reverse {
 				return cmp.Compare(b.info.Size(), a.info.Size())
 			}
 			return cmp.Compare(a.info.Size(), b.info.Size())
 		})
 	case mtime:
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			if reverseFlag {
+			if opt.reverse {
 				return b.info.ModTime().Compare(a.info.ModTime())
 			}
 			return a.info.ModTime().Compare(b.info.ModTime())
 		})
 	case git:
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			if reverseFlag {
+			if opt.reverse {
 				return strings.Compare(strings.ToLower(b.gitStatus), strings.ToLower(a.gitStatus))
 			}
 			return strings.Compare(strings.ToLower(a.gitStatus), strings.ToLower(b.gitStatus))
 		})
 	}
 
-	if dirsFirstFlag {
+	if opt.dirsFirst {
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			ad, bd := isDir(a), isDir(b)
 			switch {
@@ -423,9 +423,9 @@ func printEntries(ents []entry) {
 		return
 	}
 	switch {
-	case longFlag:
+	case opt.long:
 		printLong(ents)
-	case oneEntryFlag:
+	case opt.oneEntry:
 		print1PerLine(ents)
 	default:
 		printShort(ents)
@@ -538,7 +538,7 @@ func printShort(ents []entry) {
 
 	nameWidth += 1 // Account for (possible) classification
 	colTabs := nameWidth/tabWidth + 1
-	cols := min(max(termWidth/(colTabs*tabWidth), 1), entryCount)
+	cols := min(max(opt.termWidth/(colTabs*tabWidth), 1), entryCount)
 
 	if cols == 1 {
 		for _, n := range names {
@@ -607,9 +607,9 @@ func humanReadable(size int64) string {
 
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
-		return t.Format(timeFmtNew)
+		return t.Format(opt.timeFmtNew)
 	}
-	return t.Format(timeFmtOld)
+	return t.Format(opt.timeFmtOld)
 }
 
 func tildePath(path string) string {

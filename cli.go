@@ -40,57 +40,59 @@ environment:
   MYLS_GIT      if set, behaves like -git
 `
 
-var (
-	helpFlag      bool
-	versionFlag   bool
-	allFlag       bool
-	dirFlag       bool
-	longFlag      bool
-	reverseFlag   bool
-	oneEntryFlag  bool
-	dirsFirstFlag bool
-	gitFlag       bool
-	sortFlag      sortBy
+type options struct {
+	help      bool
+	version   bool
+	all       bool
+	dir       bool
+	long      bool
+	reverse   bool
+	oneEntry  bool
+	dirsFirst bool
+	git       bool
+	sort      sortBy
 
 	timeFmtOld string
 	timeFmtNew string
 	termWidth  int
-)
+}
 
-func parseFlags() {
-	timeFmtOld = cmp.Or(os.Getenv("MYLS_TIMEFMT_OLD"), "Jan _2  2006")
-	timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
-	_, dirsFirstFlag = os.LookupEnv("MYLS_DIRS_FIRST")
-	_, gitFlag = os.LookupEnv("MYLS_GIT")
+var opt options
+
+func initOptions() {
+	opt.timeFmtOld = cmp.Or(os.Getenv("MYLS_TIMEFMT_OLD"), "Jan _2  2006")
+	opt.timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
+	_, opt.dirsFirst = os.LookupEnv("MYLS_DIRS_FIRST")
+	_, opt.git = os.LookupEnv("MYLS_GIT")
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
-	termWidth = cmp.Or(width, 80) // Fallback for non-terminal output etc.
+	opt.termWidth = cmp.Or(width, 80) // Fallback for non-terminal output etc.
 
-	flag.BoolVar(&helpFlag, "h", false, "")
-	flag.BoolVar(&helpFlag, "help", false, "")
-	flag.BoolVar(&versionFlag, "V", false, "")
-	flag.BoolVar(&versionFlag, "version", false, "")
-	flag.BoolVar(&allFlag, "a", false, "")
-	flag.BoolVar(&dirFlag, "d", false, "")
-	flag.BoolVar(&longFlag, "l", false, "")
-	flag.BoolVar(&reverseFlag, "r", false, "")
-	flag.BoolVar(&oneEntryFlag, "1", false, "")
-	flag.BoolVar(&dirsFirstFlag, "dirsfirst", dirsFirstFlag, "")
-	flag.BoolVar(&gitFlag, "git", gitFlag, "")
-	flag.Var(&sortFlag, "sort", "")
+	flag.BoolVar(&opt.help, "h", false, "")
+	flag.BoolVar(&opt.help, "help", false, "")
+	flag.BoolVar(&opt.version, "V", false, "")
+	flag.BoolVar(&opt.version, "version", false, "")
+	flag.BoolVar(&opt.all, "a", false, "")
+	flag.BoolVar(&opt.dir, "d", false, "")
+	flag.BoolVar(&opt.long, "l", false, "")
+	flag.BoolVar(&opt.reverse, "r", false, "")
+	flag.BoolVar(&opt.oneEntry, "1", false, "")
+	flag.BoolVar(&opt.dirsFirst, "dirsfirst", opt.dirsFirst, "")
+	flag.BoolVar(&opt.git, "git", opt.git, "")
+	flag.Var(&opt.sort, "sort", "")
 	flag.Usage = func() {
 		// When triggered by an error, print compact version to stderr.
 		fmt.Fprintf(flag.CommandLine.Output(), usageLine, progName)
 	}
 	flag.Parse()
 
-	if helpFlag {
+	if opt.help {
 		// When user-initiated, print detailed usage message to stdout.
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.Usage()
 		fmt.Fprint(os.Stdout, helpMessage)
 		os.Exit(0)
 	}
-	if versionFlag {
+	if opt.version {
 		fmt.Println(version())
 		os.Exit(0)
 	}
