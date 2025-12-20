@@ -107,13 +107,13 @@ func main() {
 				dirEntries[i] = nil
 				return
 			}
-			if opt.long && opt.git {
-				attachGitToDir(d.path, ents)
-			}
 			if opt.all {
 				ents = append(selfAndParent(d.path), ents...)
 			} else {
 				ents = slices.DeleteFunc(ents, isHidden)
+			}
+			if opt.long && opt.git {
+				attachGitToDir(d.path, ents)
 			}
 			sortEntries(ents)
 			dirEntries[i] = ents
@@ -292,12 +292,16 @@ func readDirNames(path string) ([]string, error) {
 
 func attachGitToFiles(ents []entry) {
 	dirCache := make(map[string]map[string]string)
+	showGit := false
+
 	for i := range ents {
 		e := &ents[i]
-		dir := filepath.Dir(e.path)
+		var dir string
 		if e.info.IsDir() {
 			// For directory entries (e.g. with -d), use directory itself as root.
 			dir = e.path
+		} else {
+			dir = filepath.Dir(e.path)
 		}
 
 		stats, ok := dirCache[dir]
@@ -308,8 +312,18 @@ func attachGitToFiles(ents []entry) {
 		if stats == nil {
 			continue
 		}
+		showGit = true
 		if signs, ok := stats[e.path]; ok {
 			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
+		}
+	}
+
+	if !showGit {
+		return
+	}
+	for i := range ents {
+		if ents[i].gitStatus == "" {
+			ents[i].gitStatus = "--"
 		}
 	}
 }
@@ -324,6 +338,8 @@ func attachGitToDir(dir string, ents []entry) {
 		e := &ents[i]
 		if signs, ok := stats[e.path]; ok {
 			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
+		} else {
+			e.gitStatus = "--"
 		}
 	}
 }
@@ -445,7 +461,7 @@ func printLong(ents []entry) {
 
 	sizeWidth := 0
 	timeWidth := 0
-	gitWidth := 0
+	gitWidth := len(ents[0].gitStatus)
 
 	for _, e := range ents {
 		name := e.name
@@ -479,16 +495,11 @@ func printLong(ents []entry) {
 			timeWidth = n
 		}
 
-		gitStr := e.gitStatus
-		if n := len(gitStr); n > gitWidth {
-			gitWidth = n
-		}
-
 		rows = append(rows, row{
 			modeStr: mode(e),
 			sizeStr: sizeStr,
 			timeStr: timeStr,
-			gitStr:  gitStr,
+			gitStr:  e.gitStatus,
 			nameStr: name,
 		})
 	}
@@ -497,9 +508,6 @@ func printLong(ents []entry) {
 		gitWidth++ // needs separation if visible
 	}
 	for _, r := range rows {
-		if gitWidth > 0 && r.gitStr == "" {
-			r.gitStr = "--"
-		}
 		fmt.Printf("%s %*s %-*s%*s %s\n",
 			r.modeStr,
 			sizeWidth, r.sizeStr,
