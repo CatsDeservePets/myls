@@ -34,8 +34,8 @@ environment:
   MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
                 used to specify the time format for non-recent and recent files
   MYLS_DIRS_FIRST
-                if set, behaves like -dirsfirst
-  MYLS_GIT      if set, behaves like -git
+                if set to a true value, enables -dirsfirst by default
+  MYLS_GIT      if set to a true value, enables -git by default
 ```
 
 ## Example output

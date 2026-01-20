@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strconv"
 
 	"golang.org/x/term"
 )
@@ -36,8 +37,8 @@ environment:
   MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
                 used to specify the time format for non-recent and recent files
   MYLS_DIRS_FIRST
-                if set, behaves like -dirsfirst
-  MYLS_GIT      if set, behaves like -git
+                if set to a true value, enables -dirsfirst by default
+  MYLS_GIT      if set to a true value, enables -git by default
 `
 
 type options struct {
@@ -62,8 +63,8 @@ var opt options
 func initOptions() {
 	opt.timeFmtOld = cmp.Or(os.Getenv("MYLS_TIMEFMT_OLD"), "Jan _2  2006")
 	opt.timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
-	_, opt.dirsFirst = os.LookupEnv("MYLS_DIRS_FIRST")
-	_, opt.git = os.LookupEnv("MYLS_GIT")
+	opt.dirsFirst, _ = strconv.ParseBool(os.Getenv("MYLS_DIRS_FIRST"))
+	opt.git, _ = strconv.ParseBool(os.Getenv("MYLS_GIT"))
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	opt.termWidth = cmp.Or(width, 80) // Fallback for non-terminal output etc.
 
