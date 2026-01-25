@@ -7,9 +7,10 @@ import (
 	"strings"
 )
 
-// mode returns an ls-style string representation for the file info.
-// See https://github.com/golang/go/issues/27452 why we avoid FileMode.String
-// and https://man.freebsd.org/cgi/man.cgi?ls for references.
+// mode returns an ls-style file mode string for e.
+// See https://github.com/golang/go/issues/27452 for why we avoid
+// [os.FileMode.String] and https://man.freebsd.org/cgi/man.cgi?ls
+// for reference.
 func mode(e entry) string {
 	m := e.info.Mode()
 	b := []byte(m.Perm().String())
@@ -31,7 +32,7 @@ func mode(e entry) string {
 	default:
 		b[0] = '-'
 	}
-	// patch exec slots with suid/sgid/sticky flags
+	// Patch the executable bits to reflect suid/sgid/sticky.
 	if m&os.ModeSetuid != 0 {
 		if b[3] == 'x' {
 			b[3] = 's'
@@ -57,6 +58,7 @@ func mode(e entry) string {
 	return string(b)
 }
 
+// classify returns an ls-style type indicator for e, or 0 if none applies.
 func classify(e entry) rune {
 	m := e.info.Mode()
 	switch {
@@ -75,6 +77,7 @@ func classify(e entry) rune {
 	}
 }
 
+// isHidden reports whether e's name begins with a dot.
 func isHidden(e entry) bool {
 	return strings.HasPrefix(e.name, ".")
 }

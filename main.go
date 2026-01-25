@@ -16,25 +16,29 @@ import (
 	"time"
 )
 
+// tabWidth is the tab stop width in spaces.
 const tabWidth = 8
 
+// An entry is a file or directory being listed.
 type entry struct {
-	name      string
-	path      string
-	info      os.FileInfo
-	gitStatus string
+	name      string      // display name (may be relative)
+	path      string      // absolute path
+	info      os.FileInfo // file metadata
+	gitStatus string      // Git status (long mode only)
 }
 
+// sortBy controls the primary sort key.
 type sortBy int
 
 const (
 	name sortBy = iota
+	extension
 	size
 	mtime
-	extension
 	git
 )
 
+// Set implements the [flag.Value] interface.
 func (s *sortBy) Set(val string) error {
 	switch val {
 	case "name":
@@ -53,6 +57,7 @@ func (s *sortBy) Set(val string) error {
 	return nil
 }
 
+// String implements the [flag.Value] interface.
 func (s sortBy) String() string {
 	switch s {
 	case name:
@@ -136,6 +141,7 @@ func main() {
 	}
 }
 
+// collectEntries expands args and splits them into files and directories.
 func collectEntries(args []string) (files, dirs []entry) {
 	if len(args) == 0 {
 		args = []string{"."}
@@ -177,6 +183,7 @@ func collectEntries(args []string) (files, dirs []entry) {
 	return files, dirs
 }
 
+// sortEntries sorts ents according to the active sort and grouping options.
 func sortEntries(ents []entry) {
 	// Always sort by name first.
 	slices.SortFunc(ents, func(a, b entry) int {
@@ -232,6 +239,7 @@ func sortEntries(ents []entry) {
 	}
 }
 
+// selfAndParent returns entries for "." and ".." within dir.
 func selfAndParent(dir string) []entry {
 	ents := make([]entry, 0, 2)
 	for _, name := range [...]string{".", ".."} {
@@ -249,6 +257,8 @@ func selfAndParent(dir string) []entry {
 	return ents
 }
 
+// readDir is like [os.ReadDir], but returns a slice of [entry] rather than
+// [os.DirEntry] and does not sort by filename.
 func readDir(path string) ([]entry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -280,6 +290,7 @@ func readDir(path string) ([]entry, error) {
 	return ents, nil
 }
 
+// readDirNames is a convenience wrapper for [os.File.Readdirnames].
 func readDirNames(path string) ([]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -290,6 +301,8 @@ func readDirNames(path string) ([]string, error) {
 	return f.Readdirnames(-1)
 }
 
+// attachGitToFiles populates gitStatus for ents, doing at most one lookup
+// per directory.
 func attachGitToFiles(ents []entry) {
 	dirCache := make(map[string]map[string]string)
 	showGit := false
@@ -298,7 +311,7 @@ func attachGitToFiles(ents []entry) {
 		e := &ents[i]
 		var dir string
 		if e.info.IsDir() {
-			// For directory entries (e.g. with -d), use directory itself as root.
+			// For directory entries, use directory itself; it may be the repo root.
 			dir = e.path
 		} else {
 			dir = filepath.Dir(e.path)
@@ -318,6 +331,7 @@ func attachGitToFiles(ents []entry) {
 		}
 	}
 
+	// Only add placeholders if any Git status is present.
 	if !showGit {
 		return
 	}
@@ -328,6 +342,7 @@ func attachGitToFiles(ents []entry) {
 	}
 }
 
+// attachGitToDir populates gitStatus for ents using dir's repository.
 func attachGitToDir(dir string, ents []entry) {
 	stats := gitStatusesForDir(dir)
 	if stats == nil {
@@ -344,6 +359,9 @@ func attachGitToDir(dir string, ents []entry) {
 	}
 }
 
+// gitStatusesForDir returns Git status codes for dir's repository.
+// The map keys are absolute paths for all entries reported by Git.
+// It returns nil if no repository is found or status cannot be read.
 func gitStatusesForDir(dir string) map[string]string {
 	priority := func(signs string) int {
 		switch signs {
@@ -420,6 +438,7 @@ func gitStatusesForDir(dir string) map[string]string {
 	return stats
 }
 
+// gitRoot returns the repository root containing dir, or "" if none is found.
 func gitRoot(dir string) string {
 	root := dir
 	for {
@@ -434,6 +453,7 @@ func gitRoot(dir string) string {
 	}
 }
 
+// printEntries prints ents using the active output mode.
 func printEntries(ents []entry) {
 	if len(ents) == 0 {
 		return
@@ -448,6 +468,7 @@ func printEntries(ents []entry) {
 	}
 }
 
+// A row holds the formatted columns of an [entry] in long output.
 type row struct {
 	modeStr string
 	sizeStr string
@@ -456,13 +477,15 @@ type row struct {
 	nameStr string
 }
 
+// printLong prints ents with metadata columns and aligns them by content width.
 func printLong(ents []entry) {
 	rows := make([]row, 0, len(ents))
 
 	sizeWidth := 0
 	timeWidth := 0
-	gitWidth := len(ents[0].gitStatus)
+	gitWidth := len(ents[0].gitStatus) // Always 0 or 2 for every entry.
 
+	// Format once; print aligned after widths are known.
 	for _, e := range ents {
 		name := e.name
 		if suffix := classify(e); suffix != 0 {
@@ -518,6 +541,7 @@ func printLong(ents []entry) {
 	}
 }
 
+// print1PerLine prints each entry in ents on its own line.
 func print1PerLine(ents []entry) {
 	for _, e := range ents {
 		name := e.name
@@ -528,6 +552,8 @@ func print1PerLine(ents []entry) {
 	}
 }
 
+// printShort prints ents in tab-aligned columns, filling top-to-bottom first
+// and then left-to-right.
 func printShort(ents []entry) {
 	entryCount := len(ents)
 	names := make([]string, entryCount)
@@ -578,7 +604,8 @@ func printShort(ents []entry) {
 	}
 }
 
-// currently only used for better dircounts and directory grouping
+// isDir is like [os.FileInfo.IsDir], but also follows symlinks.
+// It is currently only used for better dircounts and directory grouping.
 func isDir(e entry) bool {
 	if e.info.IsDir() {
 		return true
@@ -591,6 +618,7 @@ func isDir(e entry) bool {
 	return false
 }
 
+// humanReadable formats size using binary units.
 func humanReadable(size int64) string {
 	if size < 1024 {
 		return fmt.Sprintf("%dB", size)
@@ -613,6 +641,7 @@ func humanReadable(size int64) string {
 	return "+999" + units[len(units)-1]
 }
 
+// formatTime formats t according to the active time format options.
 func formatTime(t time.Time) string {
 	if t.Year() == currYear {
 		return t.Format(opt.timeFmtNew)
@@ -620,6 +649,7 @@ func formatTime(t time.Time) string {
 	return t.Format(opt.timeFmtOld)
 }
 
+// tildePath abbreviates an absolute path under the home directory using "~".
 func tildePath(path string) string {
 	switch {
 	case homeDir == "" || !filepath.IsAbs(path):
@@ -634,6 +664,7 @@ func tildePath(path string) string {
 	}
 }
 
+// showError prints e to stderr, prefixed by the program name.
 func showError(e error) {
 	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)
 }

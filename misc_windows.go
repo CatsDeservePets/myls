@@ -9,6 +9,7 @@ import (
 	"syscall"
 )
 
+// execExts is the set of executable filename extensions on Windows.
 var execExts = map[string]bool{}
 
 func init() {
@@ -24,10 +25,10 @@ func init() {
 	}
 }
 
-// mode returns a Powershell-style string representation for the file info.
+// mode returns a PowerShell-style file mode string for e.
 // See https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-childitem
 // and https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/get-item
-// for references.
+// for reference.
 // Note: Some examples still show the obsolete 6-character mode format.
 func mode(e entry) string {
 	m := e.info.Mode()
@@ -59,6 +60,7 @@ func mode(e entry) string {
 	return string(b[:])
 }
 
+// classify returns an ls-style type indicator for e, or 0 if none applies.
 func classify(e entry) rune {
 	m := e.info.Mode()
 	switch {
@@ -75,6 +77,8 @@ func classify(e entry) rune {
 	}
 }
 
+// isExecutable reports whether e should be treated as executable.
+// This is determined by comparing the file extension against %PATHEXT%.
 func isExecutable(e entry) bool {
 	if e.info.IsDir() {
 		return false
@@ -83,6 +87,8 @@ func isExecutable(e entry) bool {
 	return ok
 }
 
+// isHidden reports whether e's name begins with a dot or has the hidden
+// attribute set.
 func isHidden(e entry) bool {
 	hidden := strings.HasPrefix(e.name, ".")
 	if !hidden {
