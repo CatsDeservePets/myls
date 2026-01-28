@@ -304,7 +304,7 @@ func readDirNames(path string) ([]string, error) {
 // attachGitToFiles populates gitStatus for ents, doing at most one lookup
 // per directory.
 func attachGitToFiles(ents []entry) {
-	dirCache := make(map[string]map[string]string)
+	dirCache := make(map[string]map[string]string, len(ents))
 	showGit := false
 
 	for i := range ents {
