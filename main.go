@@ -580,6 +580,7 @@ func printShort(ents []entry) {
 	}
 
 	rows := (entryCount + cols - 1) / cols
+	tabPad := strings.Repeat("\t", colTabs)
 
 	for r := range rows {
 		for c := range cols {
@@ -596,7 +597,7 @@ func printShort(ents []entry) {
 			}
 
 			tabs := max(colTabs-len(s)/tabWidth, 1)
-			fmt.Print(strings.Repeat("\t", tabs))
+			fmt.Print(tabPad[:tabs])
 		}
 		fmt.Println()
 	}
