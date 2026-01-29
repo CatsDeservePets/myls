@@ -500,14 +500,12 @@ func printLong(ents []entry) {
 		}
 
 		var sizeStr string
-		if isDir(e) {
-			if children, err := readDirNames(e.path); err != nil {
-				sizeStr = "!"
-			} else {
-				sizeStr = fmt.Sprintf("%d", len(children))
-			}
-		} else {
+		if !isDir(e) {
 			sizeStr = humanReadable(e.info.Size())
+		} else if children, err := readDirNames(e.path); err != nil {
+			sizeStr = "!"
+		} else {
+			sizeStr = fmt.Sprintf("%d", len(children))
 		}
 		if n := len(sizeStr); n > sizeWidth {
 			sizeWidth = n
