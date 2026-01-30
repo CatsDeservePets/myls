@@ -37,6 +37,7 @@ const (
 	size
 	mtime
 	git
+	// TODO: Natural sorting
 )
 
 // Set implements the [flag.Value] interface.
@@ -626,6 +627,7 @@ func printShort(ents []entry) {
 
 // isDir is like [os.FileInfo.IsDir], but also follows symlinks.
 // It is currently only used for better dircounts and directory grouping.
+// TODO: Add target property to [entry] and make this obsolete?
 func isDir(e entry) bool {
 	if e.info.IsDir() {
 		return true
