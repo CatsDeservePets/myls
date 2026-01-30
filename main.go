@@ -25,6 +25,7 @@ type entry struct {
 	path      string      // absolute path
 	info      os.FileInfo // file metadata
 	gitStatus string      // Git status (long mode only)
+	dirCount  int         // number of items inside (long mode only)
 }
 
 // sortBy controls the primary sort key.
@@ -82,6 +83,7 @@ var (
 
 	gitRepos   = map[string]map[string]string{}
 	gitReposMu sync.Mutex
+	dirCounts  = map[string]int{}
 )
 
 func main() {
@@ -113,6 +115,9 @@ func main() {
 				return
 			}
 			if opt.all {
+				// TODO: Set d.dirCount to len(ents) and pass d directly?
+				// Whether we follow symlinks is currently not consistent.
+				// Perhaps add -L flag in the future?
 				ents = append(selfAndParent(d.path), ents...)
 			} else {
 				ents = slices.DeleteFunc(ents, isHidden)
@@ -168,9 +173,10 @@ func collectEntries(args []string) (files, dirs []entry) {
 				abs = a
 			}
 			ent := entry{
-				name: p,
-				path: abs,
-				info: info,
+				name:     p,
+				path:     abs,
+				info:     info,
+				dirCount: -1,
 			}
 			if !opt.dir && info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
@@ -248,9 +254,10 @@ func selfAndParent(dir string) []entry {
 			showError(err)
 		} else {
 			ents = append(ents, entry{
-				name: name,
-				path: full,
-				info: info,
+				name:     name,
+				path:     full,
+				info:     info,
+				dirCount: -1,
 			})
 		}
 	}
@@ -281,24 +288,36 @@ func readDir(path string) ([]entry, error) {
 		name := de.Name()
 		full := filepath.Join(path, name)
 		ents = append(ents, entry{
-			name: name,
-			path: full,
-			info: info,
+			name:     name,
+			path:     full,
+			info:     info,
+			dirCount: -1,
 		})
 	}
 
 	return ents, nil
 }
 
-// readDirNames is a convenience wrapper for [os.File.Readdirnames].
-func readDirNames(path string) ([]string, error) {
-	f, err := os.Open(path)
+// countDirEntries returns the number of entries in dir.
+func countDirEntries(dir string) (int, error) {
+	if n, ok := dirCounts[dir]; ok {
+		return n, nil
+	}
+
+	f, err := os.Open(dir)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer f.Close()
 
-	return f.Readdirnames(-1)
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		return 0, err
+	}
+	n := len(names)
+
+	dirCounts[dir] = n
+	return n, nil
 }
 
 // attachGitToFiles populates gitStatus for ents, doing at most one lookup
@@ -502,10 +521,12 @@ func printLong(ents []entry) {
 		var sizeStr string
 		if !isDir(e) {
 			sizeStr = humanReadable(e.info.Size())
-		} else if children, err := readDirNames(e.path); err != nil {
+		} else if e.dirCount >= 0 {
+			sizeStr = fmt.Sprintf("%d", e.dirCount)
+		} else if n, err := countDirEntries(e.path); err != nil {
 			sizeStr = "!"
 		} else {
-			sizeStr = fmt.Sprintf("%d", len(children))
+			sizeStr = fmt.Sprintf("%d", n)
 		}
 		if n := len(sizeStr); n > sizeWidth {
 			sizeWidth = n
