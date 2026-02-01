@@ -407,8 +407,12 @@ func gitStatusesForDir(dir string) map[string]string {
 	gitReposMu.Unlock()
 
 	cmd := exec.Command(
-		"git", "-C", root,
-		"status", "--porcelain=v1", "-z", "--ignored",
+		"git",
+		"-C", root,
+		"status",
+		"--porcelain=v1",
+		"-z",
+		"--ignored=matching",
 	)
 	out, err := cmd.Output()
 	if err != nil {
