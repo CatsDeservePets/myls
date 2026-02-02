@@ -79,5 +79,5 @@ func classify(e entry) rune {
 
 // isHidden reports whether e's name begins with a dot.
 func isHidden(e entry) bool {
-	return strings.HasPrefix(e.name, ".")
+	return strings.HasPrefix(e.uiName, ".")
 }

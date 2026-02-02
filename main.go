@@ -21,8 +21,8 @@ const tabWidth = 8
 
 // An entry is a file or directory being listed.
 type entry struct {
-	name      string      // display name (may be relative)
-	path      string      // absolute path
+	uiName    string      // name to display (may be relative for directories)
+	fullPath  string      // absolute path
 	info      os.FileInfo // file metadata
 	gitStatus string      // Git status (long mode only)
 	dirCount  int         // number of items inside (long mode only)
@@ -109,7 +109,7 @@ func main() {
 
 	for i, d := range dirs {
 		wg.Go(func() {
-			ents, err := readDir(d.path)
+			ents, err := readDir(d.fullPath)
 			if err != nil {
 				showError(err)
 				dirEntries[i] = nil
@@ -119,12 +119,12 @@ func main() {
 				// TODO: Set d.dirCount to len(ents) and pass d directly?
 				// Whether we follow symlinks is currently not consistent.
 				// Perhaps add -L flag in the future?
-				ents = append(selfAndParent(d.path), ents...)
+				ents = append(selfAndParent(d.fullPath), ents...)
 			} else {
 				ents = slices.DeleteFunc(ents, isHidden)
 			}
 			if opt.long && opt.git {
-				attachGitToDir(d.path, ents)
+				attachGitToDir(d.fullPath, ents)
 			}
 			sortEntries(ents)
 			dirEntries[i] = ents
@@ -141,7 +141,7 @@ func main() {
 		if showDirHeader {
 			// If output has multiple sections, label directory
 			// using the user-supplied path (abbreviated with ~).
-			fmt.Printf("%s:\n", tildePath(d.name))
+			fmt.Printf("%s:\n", tildePath(d.uiName))
 		}
 		printEntries(dirEntries[i])
 	}
@@ -174,8 +174,8 @@ func collectEntries(args []string) (files, dirs []entry) {
 				abs = a
 			}
 			ent := entry{
-				name:     p,
-				path:     abs,
+				uiName:   p,
+				fullPath: abs,
 				info:     info,
 				dirCount: -1,
 			}
@@ -195,18 +195,18 @@ func sortEntries(ents []entry) {
 	// Always sort by name first.
 	slices.SortFunc(ents, func(a, b entry) int {
 		if opt.reverse {
-			return strings.Compare(strings.ToLower(b.name), strings.ToLower(a.name))
+			return strings.Compare(strings.ToLower(b.uiName), strings.ToLower(a.uiName))
 		}
-		return strings.Compare(strings.ToLower(a.name), strings.ToLower(b.name))
+		return strings.Compare(strings.ToLower(a.uiName), strings.ToLower(b.uiName))
 	})
 
 	switch opt.sort {
 	case extension:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if opt.reverse {
-				return strings.Compare(strings.ToLower(filepath.Ext(b.name)), strings.ToLower(filepath.Ext(a.name)))
+				return strings.Compare(strings.ToLower(filepath.Ext(b.uiName)), strings.ToLower(filepath.Ext(a.uiName)))
 			}
-			return strings.Compare(strings.ToLower(filepath.Ext(a.name)), strings.ToLower(filepath.Ext(b.name)))
+			return strings.Compare(strings.ToLower(filepath.Ext(a.uiName)), strings.ToLower(filepath.Ext(b.uiName)))
 		})
 	case size:
 		slices.SortStableFunc(ents, func(a, b entry) int {
@@ -255,8 +255,8 @@ func selfAndParent(dir string) []entry {
 			showError(err)
 		} else {
 			ents = append(ents, entry{
-				name:     name,
-				path:     full,
+				uiName:   name,
+				fullPath: full,
 				info:     info,
 				dirCount: -1,
 			})
@@ -289,8 +289,8 @@ func readDir(path string) ([]entry, error) {
 		name := de.Name()
 		full := filepath.Join(path, name)
 		ents = append(ents, entry{
-			name:     name,
-			path:     full,
+			uiName:   name,
+			fullPath: full,
 			info:     info,
 			dirCount: -1,
 		})
@@ -332,9 +332,9 @@ func attachGitToFiles(ents []entry) {
 		var dir string
 		if e.info.IsDir() {
 			// For directory entries, use directory itself; it may be the repo root.
-			dir = e.path
+			dir = e.fullPath
 		} else {
-			dir = filepath.Dir(e.path)
+			dir = filepath.Dir(e.fullPath)
 		}
 
 		stats, ok := dirCache[dir]
@@ -346,7 +346,7 @@ func attachGitToFiles(ents []entry) {
 			continue
 		}
 		showGit = true
-		if signs, ok := stats[e.path]; ok {
+		if signs, ok := stats[e.fullPath]; ok {
 			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
 		}
 	}
@@ -371,7 +371,7 @@ func attachGitToDir(dir string, ents []entry) {
 
 	for i := range ents {
 		e := &ents[i]
-		if signs, ok := stats[e.path]; ok {
+		if signs, ok := stats[e.fullPath]; ok {
 			e.gitStatus = strings.ReplaceAll(signs, " ", "-")
 		} else {
 			e.gitStatus = "--"
@@ -511,11 +511,11 @@ func printLong(ents []entry) {
 
 	// Format once; print aligned after widths are known.
 	for _, e := range ents {
-		name := e.name
+		name := e.uiName
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 			if suffix == '@' {
-				if target, err := os.Readlink(e.path); err != nil {
+				if target, err := os.Readlink(e.fullPath); err != nil {
 					showError(err)
 				} else {
 					name += " -> " + target
@@ -528,7 +528,7 @@ func printLong(ents []entry) {
 			sizeStr = humanReadable(e.info.Size())
 		} else if e.dirCount >= 0 {
 			sizeStr = fmt.Sprintf("%d", e.dirCount)
-		} else if n, err := countDirEntries(e.path); err != nil {
+		} else if n, err := countDirEntries(e.fullPath); err != nil {
 			sizeStr = "!"
 		} else {
 			sizeStr = fmt.Sprintf("%d", n)
@@ -568,7 +568,7 @@ func printLong(ents []entry) {
 // print1PerLine prints each entry in ents on its own line.
 func print1PerLine(ents []entry) {
 	for _, e := range ents {
-		name := e.name
+		name := e.uiName
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 		}
@@ -584,7 +584,7 @@ func printShort(ents []entry) {
 	nameWidth := 0
 
 	for i, e := range ents {
-		name := e.name
+		name := e.uiName
 		if n := len(name); n > nameWidth {
 			nameWidth = n
 		}
@@ -637,7 +637,7 @@ func isDir(e entry) bool {
 		return true
 	}
 	if e.info.Mode()&os.ModeSymlink != 0 {
-		if info, err := os.Stat(e.path); err == nil {
+		if info, err := os.Stat(e.fullPath); err == nil {
 			return info.IsDir()
 		}
 	}

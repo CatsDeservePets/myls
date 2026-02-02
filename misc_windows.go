@@ -83,14 +83,14 @@ func isExecutable(e entry) bool {
 	if e.info.IsDir() {
 		return false
 	}
-	_, ok := execExts[strings.ToLower(filepath.Ext(e.name))]
+	_, ok := execExts[strings.ToLower(filepath.Ext(e.uiName))]
 	return ok
 }
 
 // isHidden reports whether e's name begins with a dot or has the hidden
 // attribute set.
 func isHidden(e entry) bool {
-	hidden := strings.HasPrefix(e.name, ".")
+	hidden := strings.HasPrefix(e.uiName, ".")
 	if !hidden {
 		if sys, ok := e.info.Sys().(*syscall.Win32FileAttributeData); ok && sys != nil {
 			hidden = sys.FileAttributes&syscall.FILE_ATTRIBUTE_HIDDEN != 0
