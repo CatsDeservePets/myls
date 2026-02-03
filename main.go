@@ -21,11 +21,45 @@ const tabWidth = 8
 
 // An entry is a file or directory being listed.
 type entry struct {
-	uiName    string      // name to display (may be relative for directories)
-	fullPath  string      // absolute path
-	info      os.FileInfo // file metadata
-	gitStatus string      // Git status (long mode only)
-	dirCount  int         // number of items inside (long mode only)
+	uiName     string      // name to display (may be relative for directories)
+	linkTarget string      // symlink target
+	fullPath   string      // absolute path
+	info       os.FileInfo // file metadata
+	gitStatus  string      // Git status (long mode only)
+	dirCount   int         // number of items inside (long mode only)
+	dirLike    bool        // whether entry is a directory or points to one
+}
+
+func newEntry(path, name string) (entry, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return entry{}, err
+	}
+
+	e := entry{
+		fullPath: path,
+		uiName:   name,
+		info:     info,
+		dirCount: -1,
+	}
+
+	if info.IsDir() {
+		e.dirLike = true
+		return e, nil
+	}
+
+	if info.Mode()&os.ModeSymlink == 0 {
+		return e, nil
+	}
+	if e.linkTarget, err = os.Readlink(path); err != nil {
+		return entry{}, err
+	}
+
+	if ti, err := os.Stat(path); err == nil {
+		e.dirLike = ti.IsDir()
+	}
+
+	return e, nil
 }
 
 // sortBy controls the primary sort key.
@@ -116,10 +150,18 @@ func main() {
 				return
 			}
 			if opt.all {
-				// TODO: Set d.dirCount to len(ents) and pass d directly?
-				// Whether we follow symlinks is currently not consistent.
-				// Perhaps add -L flag in the future?
-				ents = append(selfAndParent(d.fullPath), ents...)
+				// Create virtual . and .. entries.
+				d.dirCount = len(ents) // avoid useless reads later
+				d.uiName = "."
+
+				d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
+				if err != nil {
+					showError(err)
+					ents = append(ents, d)
+				} else {
+					ents = append(ents, d, d2)
+				}
+
 			} else {
 				ents = slices.DeleteFunc(ents, isHidden)
 			}
@@ -163,23 +205,18 @@ func collectEntries(args []string) (files, dirs []entry) {
 		}
 
 		for _, p := range paths {
-			info, err := os.Lstat(p)
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				abs = p
+			}
+
+			ent, err := newEntry(abs, p)
 			if err != nil {
 				showError(err)
 				continue
 			}
 
-			abs := p
-			if a, err := filepath.Abs(p); err == nil {
-				abs = a
-			}
-			ent := entry{
-				uiName:   p,
-				fullPath: abs,
-				info:     info,
-				dirCount: -1,
-			}
-			if !opt.dir && info.IsDir() {
+			if !opt.dir && ent.info.IsDir() {
 				// Prefer entry type over string to simplify sorting.
 				dirs = append(dirs, ent)
 			} else {
@@ -233,7 +270,7 @@ func sortEntries(ents []entry) {
 
 	if opt.dirsFirst {
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			ad, bd := isDir(a), isDir(b)
+			ad, bd := a.dirLike, b.dirLike
 			switch {
 			case ad == bd:
 				return 0
@@ -246,25 +283,6 @@ func sortEntries(ents []entry) {
 	}
 }
 
-// selfAndParent returns entries for "." and ".." within dir.
-func selfAndParent(dir string) []entry {
-	ents := make([]entry, 0, 2)
-	for _, name := range [...]string{".", ".."} {
-		full := filepath.Join(dir, name)
-		if info, err := os.Lstat(full); err != nil {
-			showError(err)
-		} else {
-			ents = append(ents, entry{
-				uiName:   name,
-				fullPath: full,
-				info:     info,
-				dirCount: -1,
-			})
-		}
-	}
-	return ents
-}
-
 // readDir is like [os.ReadDir], but returns a slice of [entry] rather than
 // [os.DirEntry] and does not sort by filename.
 func readDir(path string) ([]entry, error) {
@@ -274,26 +292,20 @@ func readDir(path string) ([]entry, error) {
 	}
 	defer f.Close()
 
-	dirents, err := f.ReadDir(-1)
+	names, err := f.Readdirnames(-1)
 	if err != nil {
 		return nil, err
 	}
 
-	ents := make([]entry, 0, len(dirents))
-	for _, de := range dirents {
-		info, err := de.Info()
+	ents := make([]entry, 0, len(names))
+	for _, name := range names {
+		full := filepath.Join(path, name)
+		ent, err := newEntry(full, name)
 		if err != nil {
 			showError(err)
 			continue
 		}
-		name := de.Name()
-		full := filepath.Join(path, name)
-		ents = append(ents, entry{
-			uiName:   name,
-			fullPath: full,
-			info:     info,
-			dirCount: -1,
-		})
+		ents = append(ents, ent)
 	}
 
 	return ents, nil
@@ -515,16 +527,12 @@ func printLong(ents []entry) {
 		if suffix := classify(e); suffix != 0 {
 			name += string(suffix)
 			if suffix == '@' {
-				if target, err := os.Readlink(e.fullPath); err != nil {
-					showError(err)
-				} else {
-					name += " -> " + target
-				}
+				name += " -> " + e.linkTarget
 			}
 		}
 
 		var sizeStr string
-		if !isDir(e) {
+		if !e.dirLike {
 			sizeStr = humanReadable(e.info.Size())
 		} else if e.dirCount >= 0 {
 			sizeStr = fmt.Sprintf("%d", e.dirCount)
@@ -627,21 +635,6 @@ func printShort(ents []entry) {
 		}
 		fmt.Println()
 	}
-}
-
-// isDir is like [os.FileInfo.IsDir], but also follows symlinks.
-// It is currently only used for better dircounts and directory grouping.
-// TODO: Add target property to [entry] and make this obsolete?
-func isDir(e entry) bool {
-	if e.info.IsDir() {
-		return true
-	}
-	if e.info.Mode()&os.ModeSymlink != 0 {
-		if info, err := os.Stat(e.fullPath); err == nil {
-			return info.IsDir()
-		}
-	}
-	return false
 }
 
 // humanReadable formats size using binary units.
