@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -535,11 +536,11 @@ func printLong(ents []entry) {
 		if !e.dirLike {
 			sizeStr = humanReadable(e.info.Size())
 		} else if e.dirCount >= 0 {
-			sizeStr = fmt.Sprintf("%d", e.dirCount)
+			sizeStr = strconv.Itoa(e.dirCount)
 		} else if n, err := countDirEntries(e.fullPath); err != nil {
 			sizeStr = "!"
 		} else {
-			sizeStr = fmt.Sprintf("%d", n)
+			sizeStr = strconv.Itoa(n)
 		}
 		if n := len(sizeStr); n > sizeWidth {
 			sizeWidth = n
