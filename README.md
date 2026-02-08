@@ -3,6 +3,30 @@
 `myls` is a highly opinionated `ls` clone tailored to my own workflow.
 It does not aim to be compatible with either BSD or GNU `ls`.
 
+## Features
+
+Below are some notable features & differences compared to other `ls` implementations.
+This section also serves as my personal roadmap.
+See [Usage](#usage) for the full list of command-line options.
+
+### Implemented
+
+* [x] Human-readable sizes (always on)
+* [x] File type indicators (always on)
+* [x] Directory item counts in size column (always on)
+* [x] Windows support (custom `mode` column and path indicator)
+* [x] `Git` integration
+* [x] Abbreviate home directory with `~` in output
+* [x] Shell completions
+
+### Planned
+
+* [ ] Header row
+* [ ] Natural sorting (e.g. show `image_2.png` before `image_10.png`)
+* [ ] Combined short flags (e.g. `myls -la`)
+* [ ] Support for `$LS_COLORS` environment variable
+* [ ] `Get-ChildItem`/`dir`-like output for Windows
+
 ## Installation
 
 ```shell
