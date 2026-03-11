@@ -58,23 +58,9 @@ func mode(e entry) string {
 	return string(b)
 }
 
-// classify returns an ls-style type indicator for e, or 0 if none applies.
-func classify(e entry) rune {
-	m := e.info.Mode()
-	switch {
-	case m&os.ModeSymlink != 0:
-		return '@'
-	case m&os.ModeDir != 0:
-		return os.PathSeparator
-	case m&os.ModeNamedPipe != 0:
-		return '|'
-	case m&os.ModeSocket != 0:
-		return '='
-	case m&0o111 != 0:
-		return '*'
-	default:
-		return 0
-	}
+// isExecutable reports whether e is executable.
+func isExecutable(e entry) bool {
+	return e.info.Mode()&0o111 != 0
 }
 
 // isHidden reports whether e's name begins with a dot.

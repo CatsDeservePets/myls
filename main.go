@@ -526,6 +526,25 @@ func tildePath(path string) string {
 	}
 }
 
+// classify returns an ls-style type indicator for e, or 0 if none applies.
+func classify(e entry) rune {
+	m := e.info.Mode()
+	switch {
+	case m&os.ModeSymlink != 0:
+		return '@'
+	case m&os.ModeDir != 0:
+		return os.PathSeparator
+	case m&os.ModeNamedPipe != 0:
+		return '|'
+	case m&os.ModeSocket != 0:
+		return '='
+	case isExecutable(e):
+		return '*'
+	default:
+		return 0
+	}
+}
+
 // showError prints e to stderr, prefixed by the program name.
 func showError(e error) {
 	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)

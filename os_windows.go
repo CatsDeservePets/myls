@@ -60,23 +60,6 @@ func mode(e entry) string {
 	return string(b[:])
 }
 
-// classify returns an ls-style type indicator for e, or 0 if none applies.
-func classify(e entry) rune {
-	m := e.info.Mode()
-	switch {
-	case m&os.ModeSymlink != 0:
-		return '@'
-	case m&os.ModeDir != 0:
-		return os.PathSeparator
-	case m&os.ModeNamedPipe != 0:
-		return '|'
-	case isExecutable(e):
-		return '*'
-	default:
-		return 0
-	}
-}
-
 // isExecutable reports whether e should be treated as executable.
 // This is determined by comparing the file extension against %PATHEXT%.
 func isExecutable(e entry) bool {
