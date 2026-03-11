@@ -147,12 +147,10 @@ func main() {
 	}
 	sortEntries(files)
 	printEntries(files)
-
 	sortEntries(dirs)
 
 	dirEntries := make([][]entry, len(dirs))
 	var wg sync.WaitGroup
-
 	for i, d := range dirs {
 		wg.Go(func() {
 			dirEntries[i] = readDirEntries(d)
@@ -181,11 +179,11 @@ func readDirEntries(d entry) []entry {
 		showError(err)
 		return nil
 	}
-	if opt.all {
-		// Create virtual . and .. entries.
-		d.dirCount = len(ents) // avoid useless reads later
-		d.uiName = "."
 
+	if opt.all {
+		// Create virtual '.' and '..' entries.
+		d.uiName = "."
+		d.dirCount = len(ents) // avoid useless reads later
 		d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
 		if err != nil {
 			showError(err)
@@ -193,10 +191,10 @@ func readDirEntries(d entry) []entry {
 		} else {
 			ents = append(ents, d, d2)
 		}
-
 	} else {
 		ents = slices.DeleteFunc(ents, isHidden)
 	}
+
 	if opt.long && opt.git {
 		attachGitToDir(d.fullPath, ents)
 	}
@@ -382,8 +380,6 @@ func printLong(ents []entry) {
 
 	// Format once; print aligned after widths are known.
 	for _, e := range ents {
-		name := e.formatName()
-
 		var sizeStr string
 		if !e.dirLike {
 			sizeStr = humanReadable(e.info.Size())
@@ -408,7 +404,7 @@ func printLong(ents []entry) {
 			sizeStr: sizeStr,
 			timeStr: timeStr,
 			gitStr:  e.gitStatus,
-			nameStr: name,
+			nameStr: e.formatName(),
 		})
 	}
 
@@ -441,8 +437,7 @@ func printShort(ents []entry) {
 	nameWidth := 0
 
 	for i, e := range ents {
-		name := e.uiName
-		if n := len(name); n > nameWidth {
+		if n := len(e.uiName); n > nameWidth {
 			nameWidth = n
 		}
 		names[i] = e.formatName()
@@ -468,7 +463,6 @@ func printShort(ents []entry) {
 			if i >= entryCount {
 				break
 			}
-
 			s := names[i]
 			fmt.Print(s)
 
