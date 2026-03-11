@@ -155,36 +155,9 @@ func main() {
 
 	for i, d := range dirs {
 		wg.Go(func() {
-			ents, err := readDir(d.fullPath)
-			if err != nil {
-				showError(err)
-				dirEntries[i] = nil
-				return
-			}
-			if opt.all {
-				// Create virtual . and .. entries.
-				d.dirCount = len(ents) // avoid useless reads later
-				d.uiName = "."
-
-				d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
-				if err != nil {
-					showError(err)
-					ents = append(ents, d)
-				} else {
-					ents = append(ents, d, d2)
-				}
-
-			} else {
-				ents = slices.DeleteFunc(ents, isHidden)
-			}
-			if opt.long && opt.git {
-				attachGitToDir(d.fullPath, ents)
-			}
-			sortEntries(ents)
-			dirEntries[i] = ents
+			dirEntries[i] = readDirEntries(d)
 		})
 	}
-
 	wg.Wait()
 
 	for i, d := range dirs {
@@ -199,6 +172,36 @@ func main() {
 		}
 		printEntries(dirEntries[i])
 	}
+}
+
+// readDirEntries reads d and returns its entries.
+func readDirEntries(d entry) []entry {
+	ents, err := readDir(d.fullPath)
+	if err != nil {
+		showError(err)
+		return nil
+	}
+	if opt.all {
+		// Create virtual . and .. entries.
+		d.dirCount = len(ents) // avoid useless reads later
+		d.uiName = "."
+
+		d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
+		if err != nil {
+			showError(err)
+			ents = append(ents, d)
+		} else {
+			ents = append(ents, d, d2)
+		}
+
+	} else {
+		ents = slices.DeleteFunc(ents, isHidden)
+	}
+	if opt.long && opt.git {
+		attachGitToDir(d.fullPath, ents)
+	}
+	sortEntries(ents)
+	return ents
 }
 
 // collectEntries expands args and splits them into files and directories.
