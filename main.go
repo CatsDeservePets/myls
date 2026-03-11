@@ -61,6 +61,22 @@ func newEntry(path, name string) (entry, error) {
 	return e, nil
 }
 
+// applyStyle appends an indicator to uiName and returns it.
+func (e entry) formatName() string {
+	// TODO: Should we use receivers everywhere?
+	// TODO: colours
+	name := e.uiName
+	suffix := classify(e)
+	switch {
+	case suffix == 0:
+		return name
+	case suffix == '@' && opt.long:
+		return name + "@ -> " + e.linkTarget
+	default:
+		return name + string(suffix)
+	}
+}
+
 // sortBy controls the primary sort key.
 type sortBy int
 
@@ -363,13 +379,7 @@ func printLong(ents []entry) {
 
 	// Format once; print aligned after widths are known.
 	for _, e := range ents {
-		name := e.uiName
-		if suffix := classify(e); suffix != 0 {
-			name += string(suffix)
-			if suffix == '@' {
-				name += " -> " + e.linkTarget
-			}
-		}
+		name := e.formatName()
 
 		var sizeStr string
 		if !e.dirLike {
@@ -416,11 +426,7 @@ func printLong(ents []entry) {
 // print1PerLine prints each entry in ents on its own line.
 func print1PerLine(ents []entry) {
 	for _, e := range ents {
-		name := e.uiName
-		if suffix := classify(e); suffix != 0 {
-			name += string(suffix)
-		}
-		fmt.Println(name)
+		fmt.Println(e.formatName())
 	}
 }
 
@@ -436,10 +442,7 @@ func printShort(ents []entry) {
 		if n := len(name); n > nameWidth {
 			nameWidth = n
 		}
-		if suffix := classify(e); suffix != 0 {
-			name += string(suffix)
-		}
-		names[i] = name
+		names[i] = e.formatName()
 	}
 
 	nameWidth += 1 // Account for (possible) classification
