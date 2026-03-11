@@ -274,9 +274,9 @@ func sortEntries(ents []entry) {
 	case git:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if opt.reverse {
-				return strings.Compare(strings.ToLower(b.gitStatus), strings.ToLower(a.gitStatus))
+				return strings.Compare(b.gitStatus, a.gitStatus)
 			}
-			return strings.Compare(strings.ToLower(a.gitStatus), strings.ToLower(b.gitStatus))
+			return strings.Compare(a.gitStatus, b.gitStatus)
 		})
 	}
 
