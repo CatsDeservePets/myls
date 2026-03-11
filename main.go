@@ -61,22 +61,6 @@ func newEntry(path, name string) (entry, error) {
 	return e, nil
 }
 
-// formatName appends an indicator to uiName and returns it.
-func (e entry) formatName() string {
-	// TODO: Should we use receivers everywhere?
-	// TODO: colours
-	name := e.uiName
-	suffix := classify(e)
-	switch {
-	case suffix == 0:
-		return name
-	case suffix == '@' && opt.long:
-		return name + "@ -> " + e.linkTarget
-	default:
-		return name + string(suffix)
-	}
-}
-
 // sortBy controls the primary sort key.
 type sortBy int
 
@@ -172,36 +156,6 @@ func main() {
 	}
 }
 
-// readDirEntries reads d and returns its entries.
-func readDirEntries(d entry) []entry {
-	ents, err := readDir(d.fullPath)
-	if err != nil {
-		showError(err)
-		return nil
-	}
-
-	if opt.all {
-		// Create virtual '.' and '..' entries.
-		d.uiName = "."
-		d.dirCount = len(ents) // avoid useless reads later
-		d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
-		if err != nil {
-			showError(err)
-			ents = append(ents, d)
-		} else {
-			ents = append(ents, d, d2)
-		}
-	} else {
-		ents = slices.DeleteFunc(ents, isHidden)
-	}
-
-	if opt.long && opt.git {
-		attachGitToDir(d.fullPath, ents)
-	}
-	sortEntries(ents)
-	return ents
-}
-
 // collectEntries expands args and splits them into files and directories.
 func collectEntries(args []string) (files, dirs []entry) {
 	if len(args) == 0 {
@@ -238,6 +192,36 @@ func collectEntries(args []string) (files, dirs []entry) {
 		}
 	}
 	return files, dirs
+}
+
+// readDirEntries reads d and returns its entries.
+func readDirEntries(d entry) []entry {
+	ents, err := readDir(d.fullPath)
+	if err != nil {
+		showError(err)
+		return nil
+	}
+
+	if opt.all {
+		// Create virtual '.' and '..' entries.
+		d.uiName = "."
+		d.dirCount = len(ents) // avoid useless reads later
+		d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
+		if err != nil {
+			showError(err)
+			ents = append(ents, d)
+		} else {
+			ents = append(ents, d, d2)
+		}
+	} else {
+		ents = slices.DeleteFunc(ents, isHidden)
+	}
+
+	if opt.long && opt.git {
+		attachGitToDir(d.fullPath, ents)
+	}
+	sortEntries(ents)
+	return ents
 }
 
 // sortEntries sorts ents according to the active sort and grouping options.
@@ -373,10 +357,7 @@ type row struct {
 // printLong prints ents with metadata columns and aligns them by content width.
 func printLong(ents []entry) {
 	rows := make([]row, 0, len(ents))
-
-	sizeWidth := 0
-	timeWidth := 0
-	gitWidth := len(ents[0].gitStatus) // Always 0 or 2 for every entry.
+	var sizeWidth, timeWidth int
 
 	// Format once; print aligned after widths are known.
 	for _, e := range ents {
@@ -404,10 +385,11 @@ func printLong(ents []entry) {
 			sizeStr: sizeStr,
 			timeStr: timeStr,
 			gitStr:  e.gitStatus,
-			nameStr: e.formatName(),
+			nameStr: formatName(e),
 		})
 	}
 
+	gitWidth := len(ents[0].gitStatus) // Always 0 or 2 for every entry.
 	if gitWidth > 0 {
 		gitWidth++ // needs separation if visible
 	}
@@ -425,7 +407,7 @@ func printLong(ents []entry) {
 // print1PerLine prints each entry in ents on its own line.
 func print1PerLine(ents []entry) {
 	for _, e := range ents {
-		fmt.Println(e.formatName())
+		fmt.Println(formatName(e))
 	}
 }
 
@@ -440,7 +422,7 @@ func printShort(ents []entry) {
 		if n := len(e.uiName); n > nameWidth {
 			nameWidth = n
 		}
-		names[i] = e.formatName()
+		names[i] = formatName(e)
 	}
 
 	nameWidth += 1 // Account for (possible) classification
@@ -474,6 +456,40 @@ func printShort(ents []entry) {
 			fmt.Print(tabPad[:tabs])
 		}
 		fmt.Println()
+	}
+}
+
+// formatName appends an indicator to uiName and returns it.
+func formatName(e entry) string {
+	// TODO: colours
+	name := e.uiName
+	suffix := classify(e)
+	switch {
+	case suffix == 0:
+		return name
+	case suffix == '@' && opt.long:
+		return name + "@ -> " + e.linkTarget
+	default:
+		return name + string(suffix)
+	}
+}
+
+// classify returns an ls-style type indicator for e, or 0 if none applies.
+func classify(e entry) rune {
+	m := e.info.Mode()
+	switch {
+	case m&os.ModeSymlink != 0:
+		return '@'
+	case m&os.ModeDir != 0:
+		return os.PathSeparator
+	case m&os.ModeNamedPipe != 0:
+		return '|'
+	case m&os.ModeSocket != 0:
+		return '='
+	case isExecutable(e):
+		return '*'
+	default:
+		return 0
 	}
 }
 
@@ -520,25 +536,6 @@ func tildePath(path string) string {
 			return "~" + after
 		}
 		return path
-	}
-}
-
-// classify returns an ls-style type indicator for e, or 0 if none applies.
-func classify(e entry) rune {
-	m := e.info.Mode()
-	switch {
-	case m&os.ModeSymlink != 0:
-		return '@'
-	case m&os.ModeDir != 0:
-		return os.PathSeparator
-	case m&os.ModeNamedPipe != 0:
-		return '|'
-	case m&os.ModeSocket != 0:
-		return '='
-	case isExecutable(e):
-		return '*'
-	default:
-		return 0
 	}
 }
 
