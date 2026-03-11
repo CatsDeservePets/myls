@@ -61,7 +61,7 @@ func newEntry(path, name string) (entry, error) {
 	return e, nil
 }
 
-// applyStyle appends an indicator to uiName and returns it.
+// formatName appends an indicator to uiName and returns it.
 func (e entry) formatName() string {
 	// TODO: Should we use receivers everywhere?
 	// TODO: colours
