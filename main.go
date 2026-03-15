@@ -415,14 +415,12 @@ func print1PerLine(ents []entry) {
 // and then left-to-right.
 func printShort(ents []entry) {
 	entryCount := len(ents)
-	names := make([]string, entryCount)
 	nameWidth := 0
 
-	for i, e := range ents {
+	for _, e := range ents {
 		if n := len(e.uiName); n > nameWidth {
 			nameWidth = n
 		}
-		names[i] = formatName(e)
 	}
 
 	nameWidth += 1 // Account for (possible) classification
@@ -430,8 +428,8 @@ func printShort(ents []entry) {
 	cols := min(max(opt.termWidth/(colTabs*tabWidth), 1), entryCount)
 
 	if cols == 1 {
-		for _, n := range names {
-			fmt.Println(n)
+		for _, e := range ents {
+			fmt.Println(formatName(e))
 		}
 		return
 	}
@@ -445,7 +443,7 @@ func printShort(ents []entry) {
 			if i >= entryCount {
 				break
 			}
-			s := names[i]
+			s := formatName(ents[i])
 			fmt.Print(s)
 
 			if c == cols-1 || i+rows >= entryCount {
