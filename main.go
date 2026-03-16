@@ -461,7 +461,7 @@ func printShort(ents []entry) {
 func formatName(e entry) string {
 	// TODO: colours
 	name := e.uiName
-	suffix := classify(e)
+	suffix := indicator(e)
 	switch {
 	case suffix == 0:
 		return name
@@ -472,8 +472,8 @@ func formatName(e entry) string {
 	}
 }
 
-// classify returns an ls-style type indicator for e, or 0 if none applies.
-func classify(e entry) rune {
+// indicator returns an ls-style type indicator for e, or 0 if none applies.
+func indicator(e entry) rune {
 	m := e.info.Mode()
 	switch {
 	case m&os.ModeSymlink != 0:
