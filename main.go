@@ -130,6 +130,7 @@ var (
 
 func main() {
 	initOptions()
+	initColors()
 
 	files, dirs := collectEntries(flag.Args())
 	if len(dirs) == 0 && len(files) == 0 {
@@ -454,24 +455,27 @@ func printShort(ents []entry) {
 			if i >= entryCount {
 				break
 			}
-			s := formatName(ents[i])
-			fmt.Print(s)
+			e := ents[i]
+			fmt.Print(formatName(e))
 
 			if c == cols-1 || i+rows >= entryCount {
 				continue
 			}
 
-			tabs := max(colTabs-len(s)/tabWidth, 1)
+			n := len(ents[i].uiName)
+			if suffix := indicator(e); suffix != 0 {
+				n += 1
+			}
+			tabs := max(colTabs-n/tabWidth, 1)
 			fmt.Print(tabPad[:tabs])
 		}
 		fmt.Println()
 	}
 }
 
-// formatName appends an indicator to uiName and returns it.
+// formatName adds colours and a type tindicator to e's uiName and returns it.
 func formatName(e entry) string {
-	// TODO: colours
-	name := e.uiName
+	name := colorize(e)
 	suffix := indicator(e)
 	switch {
 	case suffix == 0:
