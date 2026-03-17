@@ -6,18 +6,18 @@ import (
 )
 
 const (
-	csi   = "\033[" // Control Sequence Introducer
-	reset = "\033[0m"
+	csi   = "\033["   // ANSI control sequence introducer
+	reset = "\033[0m" // ANSI reset sequence
 )
 
+// colorConfig represents the programs's colour configuration.
 type colorConfig struct {
-	enabled  bool
-	types    map[string]string
-	suffixes map[string]string
+	enabled  bool              // whether coloured output should be used
+	types    map[string]string // $LS_COLORS type to colour sequence (e.g. "di", "ln")
+	suffixes map[string]string // filename suffix to colour sequence (e.g. ".go", "~")
 }
 
 var colors = colorConfig{
-	enabled:  false,
 	suffixes: make(map[string]string),
 	types: map[string]string{
 		"ln": "", // LINK
@@ -45,17 +45,9 @@ var colors = colorConfig{
 	},
 }
 
-func initColors() {
-	if os.Getenv("NO_COLOR") != "" {
-		return
-	}
-	if v := os.Getenv("LS_COLORS"); v != "" {
-		colors.enabled = true
-		parseLSCOLORS(v)
-	}
-}
-
-func parseLSCOLORS(s string) {
+// applyLSCOLORS parses an $LS_COLORS value and updates c with its rules.
+// Note: BSD's $LSCOLORS uses a different format and is not supported.
+func (c *colorConfig) applyLSCOLORS(s string) {
 	for ent := range strings.SplitSeq(s, ":") {
 		k, v, found := strings.Cut(ent, "=")
 		if !found {
@@ -66,14 +58,26 @@ func parseLSCOLORS(s string) {
 			v = ""
 		}
 		k, _ = strings.CutPrefix(k, "*")
-		if _, ok := colors.types[k]; ok {
-			colors.types[k] = v
+		if _, ok := c.types[k]; ok {
+			c.types[k] = v
 		} else {
-			colors.suffixes[k] = v
+			c.suffixes[k] = v
 		}
 	}
 }
 
+// initColors initialises the colour configuration from environment variables.
+func initColors() {
+	if os.Getenv("NO_COLOR") != "" {
+		return
+	}
+	if v := os.Getenv("LS_COLORS"); v != "" {
+		colors.enabled = true
+		colors.applyLSCOLORS(v)
+	}
+}
+
+// colorize adds colours to e's uiName and returns it.
 func colorize(e entry) string {
 	if !colors.enabled {
 		return e.uiName
