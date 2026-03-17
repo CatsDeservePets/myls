@@ -39,8 +39,10 @@ environment:
   MYLS_TIMEFMT_OLD, MYLS_TIMEFMT_NEW
                 used to specify the time format for non-recent and recent files
   MYLS_DIRS_FIRST
-                if set to a true value, enables -dirsfirst by default
-  MYLS_GIT      if set to a true value, enables -git by default
+                if set to a true boolean value, enables -dirsfirst by default
+  MYLS_GIT      if set to a true boolean value, enables -git by default
+  LS_COLORS     used to specify the colours for file types and file names
+  NO_COLOR      if set to a non-empty value, disables coloured output
 `
 
 // options represents the program's runtime configuration.
