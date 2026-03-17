@@ -18,10 +18,20 @@ import (
 // tabWidth is the tab stop width in spaces.
 const tabWidth = 8
 
+// A linkMode describes the state of a symbolic link.
+type linkMode byte
+
+const (
+	none linkMode = iota
+	working
+	orphan
+)
+
 // An entry is a file or directory being listed.
 type entry struct {
 	uiName     string      // name to display (may be relative for directories)
 	linkTarget string      // symlink target
+	linkMode   linkMode    // symlink-related information (required by $LS_COLORS)
 	fullPath   string      // absolute path
 	info       os.FileInfo // file metadata
 	gitStatus  string      // Git status (long mode only)
@@ -50,13 +60,14 @@ func newEntry(path, name string) (entry, error) {
 	if info.Mode()&os.ModeSymlink == 0 {
 		return e, nil
 	}
-	if e.linkTarget, err = os.Readlink(path); err != nil {
-		return entry{}, err
-	}
 
 	if ti, err := os.Stat(path); err == nil {
+		e.linkMode = working
 		e.dirLike = ti.IsDir()
+	} else {
+		e.linkMode = orphan
 	}
+	e.linkTarget, _ = os.Readlink(path)
 
 	return e, nil
 }
@@ -119,6 +130,7 @@ var (
 
 func main() {
 	initOptions()
+	initColors()
 
 	files, dirs := collectEntries(flag.Args())
 	if len(dirs) == 0 && len(files) == 0 {
@@ -443,24 +455,27 @@ func printShort(ents []entry) {
 			if i >= entryCount {
 				break
 			}
-			s := formatName(ents[i])
-			fmt.Print(s)
+			e := ents[i]
+			fmt.Print(formatName(e))
 
 			if c == cols-1 || i+rows >= entryCount {
 				continue
 			}
 
-			tabs := max(colTabs-len(s)/tabWidth, 1)
+			n := len(ents[i].uiName)
+			if suffix := indicator(e); suffix != 0 {
+				n += 1
+			}
+			tabs := max(colTabs-n/tabWidth, 1)
 			fmt.Print(tabPad[:tabs])
 		}
 		fmt.Println()
 	}
 }
 
-// formatName appends an indicator to uiName and returns it.
+// formatName adds colours and a type tindicator to e's uiName and returns it.
 func formatName(e entry) string {
-	// TODO: colours
-	name := e.uiName
+	name := colorize(e)
 	suffix := indicator(e)
 	switch {
 	case suffix == 0:
