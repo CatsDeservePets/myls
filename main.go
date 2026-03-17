@@ -31,7 +31,7 @@ const (
 type entry struct {
 	uiName     string      // name to display (may be relative for directories)
 	linkTarget string      // symlink target
-	linkMode   linkMode    // symlink-related information (required by `$LS_COLORS`)
+	linkMode   linkMode    // symlink-related information (required by $LS_COLORS)
 	fullPath   string      // absolute path
 	info       os.FileInfo // file metadata
 	gitStatus  string      // Git status (long mode only)
