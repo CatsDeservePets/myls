@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 const (
@@ -68,7 +70,7 @@ func (c *colorConfig) applyLSCOLORS(s string) {
 
 // initColors initialises the colour configuration from environment variables.
 func initColors() {
-	if os.Getenv("NO_COLOR") != "" {
+	if os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd())) {
 		return
 	}
 	if v := os.Getenv("LS_COLORS"); v != "" {
