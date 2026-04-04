@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"golang.org/x/term"
@@ -16,11 +17,15 @@ const (
 type colorConfig struct {
 	enabled  bool              // whether coloured output should be used
 	types    map[string]string // $LS_COLORS type to colour sequence (e.g. "di", "ln")
-	suffixes map[string]string // filename suffix to colour sequence (e.g. ".go", "~")
+	suffixes []suffixRule      // filename suffix to colour sequence, kept in a slice for sorting
+}
+
+type suffixRule struct {
+	suffix string // filename suffix (e.g. ".go", "~")
+	style  string // colour sequence
 }
 
 var colors = colorConfig{
-	suffixes: make(map[string]string),
 	types: map[string]string{
 		"ln": "", // LINK
 		"or": "", // ORPHAN
@@ -59,13 +64,19 @@ func (c *colorConfig) applyLSCOLORS(s string) {
 		if v == "0" || v == "00" {
 			v = ""
 		}
-		k, _ = strings.CutPrefix(k, "*")
 		if _, ok := c.types[k]; ok {
 			c.types[k] = v
-		} else {
-			c.suffixes[k] = v
+		} else if k, _ = strings.CutPrefix(k, "*"); k != "" {
+			c.suffixes = append(c.suffixes, suffixRule{k, v})
 		}
 	}
+	// Sort longest suffix first so the earliest match is the most specific.
+	slices.SortStableFunc(c.suffixes, func(a, b suffixRule) int {
+		if n := len(b.suffix) - len(a.suffix); n != 0 {
+			return n
+		}
+		return strings.Compare(a.suffix, b.suffix)
+	})
 }
 
 // initColors initialises the colour configuration from environment variables.
@@ -120,9 +131,9 @@ func colorize(e entry) string {
 		return sgr(style, e.uiName)
 	}
 
-	for k, v := range colors.suffixes {
-		if strings.HasSuffix(e.uiName, k) {
-			return sgr(v, e.uiName)
+	for _, s := range colors.suffixes {
+		if strings.HasSuffix(e.uiName, s.suffix) {
+			return sgr(s.style, e.uiName)
 		}
 	}
 
