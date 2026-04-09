@@ -127,8 +127,11 @@ func colorize(e entry) string {
 		kind = "ex"
 	}
 
-	if style, ok := colors.types[kind]; ok {
+	if style := colors.types[kind]; style != "" {
 		return sgr(style, e.uiName)
+	}
+	if kind == "or" {
+		return sgr(colors.types["ln"], e.uiName)
 	}
 
 	for _, s := range colors.suffixes {
@@ -138,11 +141,7 @@ func colorize(e entry) string {
 	}
 
 	// Fall back to regular files.
-	if style, ok := colors.types["fi"]; ok {
-		return sgr(style, e.uiName)
-	}
-
-	return e.uiName
+	return sgr(colors.types["fi"], e.uiName)
 }
 
 // sgr applies style to s and returns it as a valid ANSI escape sequence.
