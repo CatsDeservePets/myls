@@ -279,11 +279,10 @@ func sortEntries(ents []entry) {
 
 	if opt.dirsFirst {
 		slices.SortStableFunc(ents, func(a, b entry) int {
-			ad, bd := a.dirLike, b.dirLike
 			switch {
-			case ad == bd:
+			case a.dirLike == b.dirLike:
 				return 0
-			case ad:
+			case a.dirLike:
 				return -1
 			default:
 				return 1
