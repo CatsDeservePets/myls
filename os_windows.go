@@ -66,7 +66,7 @@ func isExecutable(e entry) bool {
 	if e.info.IsDir() {
 		return false
 	}
-	_, ok := execExts[strings.ToLower(filepath.Ext(e.uiName))]
+	_, ok := execExts[filepath.Ext(e.sortName)]
 	return ok
 }
 

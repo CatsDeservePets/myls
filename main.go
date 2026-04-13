@@ -29,10 +29,11 @@ const (
 
 // An entry is a file or directory being listed.
 type entry struct {
+	fullPath   string      // absolute path
 	uiName     string      // name to display (may be relative for directories)
+	sortName   string      // lowercased uiName (used for sorting)
 	linkTarget string      // symlink target
 	linkMode   linkMode    // symlink-related information (required by $LS_COLORS)
-	fullPath   string      // absolute path
 	info       os.FileInfo // file metadata
 	gitStatus  string      // Git status (long mode only)
 	dirCount   int         // number of items inside (long mode only)
@@ -48,6 +49,7 @@ func newEntry(path, name string) (entry, error) {
 	e := entry{
 		fullPath: path,
 		uiName:   name,
+		sortName: strings.ToLower(name),
 		info:     info,
 		dirCount: -1,
 	}
@@ -241,18 +243,18 @@ func sortEntries(ents []entry) {
 	// Always sort by name first.
 	slices.SortFunc(ents, func(a, b entry) int {
 		if opt.reverse {
-			return strings.Compare(strings.ToLower(b.uiName), strings.ToLower(a.uiName))
+			return strings.Compare(b.sortName, a.sortName)
 		}
-		return strings.Compare(strings.ToLower(a.uiName), strings.ToLower(b.uiName))
+		return strings.Compare(a.sortName, b.sortName)
 	})
 
 	switch opt.sort {
 	case extension:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if opt.reverse {
-				return strings.Compare(strings.ToLower(filepath.Ext(b.uiName)), strings.ToLower(filepath.Ext(a.uiName)))
+				return strings.Compare(filepath.Ext(b.sortName), filepath.Ext(a.sortName))
 			}
-			return strings.Compare(strings.ToLower(filepath.Ext(a.uiName)), strings.ToLower(filepath.Ext(b.uiName)))
+			return strings.Compare(filepath.Ext(a.sortName), filepath.Ext(b.sortName))
 		})
 	case size:
 		slices.SortStableFunc(ents, func(a, b entry) int {
