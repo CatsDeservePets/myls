@@ -219,6 +219,7 @@ func readDirEntries(d entry) []entry {
 	if opt.all {
 		// Create virtual '.' and '..' entries.
 		d.uiName = "."
+		d.sortName = "."
 		d.dirCount = len(ents) // avoid useless reads later
 		d2, err := newEntry(filepath.Join(d.fullPath, ".."), "..")
 		if err != nil {
