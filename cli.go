@@ -114,5 +114,5 @@ func version() string {
 	if !ok {
 		return progName + " unknown"
 	}
-	return fmt.Sprintf("%s %s", progName, bi.Main.Version)
+	return progName + " " + bi.Main.Version
 }

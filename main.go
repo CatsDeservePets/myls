@@ -164,7 +164,7 @@ func main() {
 		if showDirHeader {
 			// If output has multiple sections, label directory
 			// using the user-supplied path (abbreviated with ~).
-			fmt.Printf("%s:\n", tildePath(d.uiName))
+			fmt.Print(tildePath(d.uiName), ":\n")
 		}
 		printEntries(dirEntries[i])
 	}
