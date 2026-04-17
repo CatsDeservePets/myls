@@ -460,7 +460,7 @@ func printShort(ents []entry) {
 	}
 }
 
-// formatName adds colours and a type tindicator to e's uiName and returns it.
+// formatName adds colours and a type indicator to e's uiName and returns it.
 func formatName(e entry) string {
 	name := colorize(e)
 	suffix := indicator(e)
