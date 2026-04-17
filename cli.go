@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 
@@ -47,16 +49,17 @@ environment:
 
 // options represents the program's runtime configuration.
 type options struct {
-	help      bool   // -h, -help
-	version   bool   // -V, -version
-	all       bool   // -a
-	dir       bool   // -d
-	long      bool   // -l
-	reverse   bool   // -r
-	oneEntry  bool   // -1
-	dirsFirst bool   // -dirsfirst
-	git       bool   // -git
-	sort      sortBy // -sort
+	help      bool     // -h, -help
+	version   bool     // -V, -version
+	all       bool     // -a
+	dir       bool     // -d
+	long      bool     // -l
+	reverse   bool     // -r
+	oneEntry  bool     // -1
+	dirsFirst bool     // -dirsfirst
+	git       bool     // -git
+	sort      sortBy   // -sort
+	args      []string // non-flag command-line arguments
 
 	timeFmtOld string
 	timeFmtNew string
@@ -106,6 +109,17 @@ func initOptions() {
 		fmt.Println(version())
 		os.Exit(0)
 	}
+
+	args := flag.Args()
+	// Windows leaves glob expansion to the application.
+	// In this case, us.
+	if runtime.GOOS == "windows" {
+		args = expandGlobs(args)
+	}
+	if len(args) == 0 {
+		args = []string{"."}
+	}
+	opt.args = args
 }
 
 // version returns the program name and version string.
@@ -115,4 +129,18 @@ func version() string {
 		return progName + " unknown"
 	}
 	return progName + " " + bi.Main.Version
+}
+
+// expandGlobs expands wildcards in args using [filepath.Glob].
+// If an argument returns no matches, it is left unchanged.
+func expandGlobs(args []string) []string {
+	out := make([]string, 0, len(args))
+	for _, pattern := range args {
+		if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
+			out = append(out, matches...)
+		} else {
+			out = append(out, pattern)
+		}
+	}
+	return out
 }

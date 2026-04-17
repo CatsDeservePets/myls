@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"errors"
-	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -134,7 +133,7 @@ func main() {
 	initOptions()
 	initColors()
 
-	files, dirs := collectEntries(flag.Args())
+	files, dirs := collectEntries(opt.args)
 	if len(dirs) == 0 && len(files) == 0 {
 		os.Exit(1)
 	}
@@ -170,39 +169,25 @@ func main() {
 	}
 }
 
-// collectEntries expands args and splits them into files and directories.
-func collectEntries(args []string) (files, dirs []entry) {
-	if len(args) == 0 {
-		args = []string{"."}
-	}
-
-	for _, pattern := range args {
-		// Windows does not expand shell globs automatically,
-		// so we start by treating patterns as literal paths.
-		paths := []string{pattern}
-		// Override the literal path when globbing succeeds.
-		if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
-			paths = matches
+// collectEntries creates entries from paths and separates files from directories.
+func collectEntries(paths []string) (files, dirs []entry) {
+	for _, p := range paths {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			abs = p
 		}
 
-		for _, p := range paths {
-			abs, err := filepath.Abs(p)
-			if err != nil {
-				abs = p
-			}
+		ent, err := newEntry(abs, p)
+		if err != nil {
+			showError(err)
+			continue
+		}
 
-			ent, err := newEntry(abs, p)
-			if err != nil {
-				showError(err)
-				continue
-			}
-
-			if !opt.dir && ent.info.IsDir() {
-				// Prefer entry type over string to simplify sorting.
-				dirs = append(dirs, ent)
-			} else {
-				files = append(files, ent)
-			}
+		if !opt.dir && ent.info.IsDir() {
+			// Prefer entry type over string to simplify sorting.
+			dirs = append(dirs, ent)
+		} else {
+			files = append(files, ent)
 		}
 	}
 	return files, dirs
