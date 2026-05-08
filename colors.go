@@ -96,52 +96,51 @@ func colorize(e entry) string {
 		return e.uiName
 	}
 
-	var kind string
+	types := colors.types
 	m := e.info.Mode()
-	switch {
-	case e.linkMode == working:
-		kind = "ln"
-	case e.linkMode == orphan:
-		kind = "or"
-	case m&os.ModeDir != 0 && m&os.ModeSticky != 0 && m&0o002 != 0:
-		kind = "tw"
-	case m&os.ModeDir != 0 && m&0o002 != 0:
-		kind = "ow"
-	case m&os.ModeDir != 0 && m&os.ModeSticky != 0:
-		kind = "st"
-	case m&os.ModeDir != 0:
-		kind = "di"
-	case m&os.ModeNamedPipe != 0:
-		kind = "pi"
-	case m&os.ModeSocket != 0:
-		kind = "so"
-	case m&os.ModeCharDevice != 0:
-		kind = "cd"
-	case m&os.ModeDevice != 0:
-		kind = "bd"
-	case m&os.ModeType == 0 && m&os.ModeSetuid != 0:
-		kind = "su"
-	case m&os.ModeType == 0 && m&os.ModeSetgid != 0:
-		kind = "sg"
-	case isExecutable(e):
-		kind = "ex"
+	style := ""
+
+	setStyle := func(kind string) bool {
+		style = types[kind]
+		return style != ""
 	}
 
-	if style := colors.types[kind]; style != "" {
+	// Order matters: if a matching style is unset, try the next fallback.
+	switch {
+	case e.linkMode == orphan && setStyle("or"):
+	case e.linkMode != none && setStyle("ln"):
+
+	case m&os.ModeDir != 0 && m&os.ModeSticky != 0 && m&0o002 != 0 && setStyle("tw"):
+	case m&os.ModeDir != 0 && m&0o002 != 0 && setStyle("ow"):
+	case m&os.ModeDir != 0 && m&os.ModeSticky != 0 && setStyle("st"):
+	case m&os.ModeDir != 0 && setStyle("di"):
+
+	case m&os.ModeNamedPipe != 0 && setStyle("pi"):
+	case m&os.ModeSocket != 0 && setStyle("so"):
+	case m&os.ModeCharDevice != 0 && setStyle("cd"):
+	case m&os.ModeDevice != 0 && setStyle("bd"):
+
+	case m&os.ModeType == 0 && m&os.ModeSetuid != 0 && setStyle("su"):
+	case m&os.ModeType == 0 && m&os.ModeSetgid != 0 && setStyle("sg"):
+	case isExecutable(e) && setStyle("ex"):
+	}
+
+	if style != "" {
 		return sgr(style, e.uiName)
 	}
-	if kind == "or" {
-		return sgr(colors.types["ln"], e.uiName)
-	}
 
-	for _, s := range colors.suffixes {
-		if strings.HasSuffix(e.uiName, s.suffix) {
-			return sgr(s.style, e.uiName)
+	if m&os.ModeType == 0 {
+		for _, s := range colors.suffixes {
+			// TODO: should we also match against [entry.sortName]
+			// to catch files with an uppercase file extension?
+			if strings.HasSuffix(e.uiName, s.suffix) {
+				return sgr(s.style, e.uiName)
+			}
 		}
 	}
 
 	// Fall back to regular files.
-	return sgr(colors.types["fi"], e.uiName)
+	return sgr(types["fi"], e.uiName)
 }
 
 // sgr applies style to s and returns it as a valid ANSI escape sequence.
