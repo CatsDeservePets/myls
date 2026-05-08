@@ -393,7 +393,8 @@ func printLong(ents []entry) {
 		gitWidth++ // needs separation if visible
 	}
 	for _, r := range rows {
-		fmt.Printf("%s %*s %-*s%*s %s\n",
+		fmt.Printf(
+			"%s %*s %-*s%*s %s\n",
 			r.modeStr,
 			sizeWidth, r.sizeStr,
 			timeWidth, r.timeStr,
