@@ -66,8 +66,7 @@ func isExecutable(e entry) bool {
 	if e.info.IsDir() {
 		return false
 	}
-	_, ok := execExts[filepath.Ext(e.sortName)]
-	return ok
+	return execExts[filepath.Ext(e.sortName)]
 }
 
 // isHidden reports whether e's name begins with a dot or has the hidden
