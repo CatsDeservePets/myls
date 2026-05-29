@@ -127,6 +127,7 @@ var (
 	homeDir, _ = os.UserHomeDir()
 	currYear   = time.Now().Year()
 	dirCounts  = map[string]int{}
+	exitCode   = 0
 )
 
 func main() {
@@ -166,6 +167,10 @@ func main() {
 			fmt.Print(tildePath(d.uiName), ":\n")
 		}
 		printEntries(dirEntries[i])
+	}
+
+	if exitCode > 0 {
+		os.Exit(exitCode)
 	}
 }
 
@@ -542,5 +547,6 @@ func tildePath(path string) string {
 
 // showError prints e to stderr, prefixed by the program name.
 func showError(e error) {
+	exitCode = 1
 	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)
 }
