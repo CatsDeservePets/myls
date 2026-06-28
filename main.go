@@ -123,7 +123,6 @@ func (s sortBy) String() string {
 }
 
 var (
-	progName   = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
 	homeDir, _ = os.UserHomeDir()
 	currYear   = time.Now().Year()
 	dirCounts  = map[string]int{}
@@ -548,5 +547,5 @@ func tildePath(path string) string {
 // showError prints e to stderr, prefixed by the program name.
 func showError(e error) {
 	exitCode = 1
-	fmt.Fprintf(os.Stderr, "%s: %v\n", progName, e)
+	fmt.Fprintln(os.Stderr, "myls: "+e.Error())
 }

@@ -14,9 +14,8 @@ import (
 )
 
 // usageLine is the synopsis printed on flag parse errors.
-const usageLine = `usage: %s [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
-            [-sort WORD] [file ...]
-`
+const usageLine = `usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
+            [-sort WORD] [file ...]`
 
 // helpMessage is the full help text printed for -h/-help.
 const helpMessage = `
@@ -44,8 +43,7 @@ environment:
                 if set to a true boolean value, enables -dirsfirst by default
   MYLS_GIT      if set to a true boolean value, enables -git by default
   LS_COLORS     used to specify the colours for file types and file names
-  NO_COLOR      if set to a non-empty value, disables coloured output
-`
+  NO_COLOR      if set to a non-empty value, disables coloured output`
 
 // options represents the program's runtime configuration.
 type options struct {
@@ -93,7 +91,7 @@ func initOptions() {
 
 	// If flag parsing fails, print the usage synopsis to stderr.
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), usageLine, progName)
+		fmt.Fprintln(flag.CommandLine.Output(), usageLine)
 	}
 	flag.Parse()
 
@@ -101,7 +99,7 @@ func initOptions() {
 	if opt.help {
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.Usage()
-		fmt.Fprint(os.Stdout, helpMessage)
+		fmt.Fprintln(os.Stdout, helpMessage)
 		os.Exit(0)
 	}
 
@@ -126,9 +124,9 @@ func initOptions() {
 func version() string {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {
-		return progName + " unknown"
+		return "myls unknown"
 	}
-	return progName + " " + bi.Main.Version
+	return "myls " + bi.Main.Version
 }
 
 // expandGlobs expands wildcards in args using [filepath.Glob].
