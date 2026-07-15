@@ -107,8 +107,8 @@ func colorize(e entry) string {
 
 	// Order matters: if a matching style is unset, try the next fallback.
 	switch {
-	case e.linkMode == orphan && setStyle("or"):
-	case e.linkMode != none && setStyle("ln"):
+	case e.linkState == orphanedLink && setStyle("or"):
+	case e.linkState != noLink && setStyle("ln"):
 
 	case m&os.ModeDir != 0 && m&os.ModeSticky != 0 && m&0o002 != 0 && setStyle("tw"):
 	case m&os.ModeDir != 0 && m&0o002 != 0 && setStyle("ow"):

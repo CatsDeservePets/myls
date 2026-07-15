@@ -2,7 +2,6 @@ package main
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -17,13 +16,13 @@ import (
 // tabWidth is the tab stop width in spaces.
 const tabWidth = 8
 
-// A linkMode describes the state of a symbolic link.
-type linkMode byte
+// A linkState describes an entry's symlink state.
+type linkState byte
 
 const (
-	none linkMode = iota
-	working
-	orphan
+	noLink linkState = iota
+	validLink
+	orphanedLink
 )
 
 // An entry is a file or directory being listed.
@@ -32,7 +31,7 @@ type entry struct {
 	uiName     string      // name to display (may be relative for directories)
 	sortName   string      // lowercased uiName (used for sorting)
 	linkTarget string      // symlink target
-	linkMode   linkMode    // symlink-related information (required by $LS_COLORS)
+	linkState  linkState   // symlink classification (required by $LS_COLORS)
 	info       os.FileInfo // file metadata
 	gitStatus  string      // Git status (long mode only)
 	dirCount   int         // number of items inside (long mode only)
@@ -63,63 +62,14 @@ func newEntry(path, name string) (entry, error) {
 	}
 
 	if ti, err := os.Stat(path); err == nil {
-		e.linkMode = working
+		e.linkState = validLink
 		e.dirLike = ti.IsDir()
 	} else {
-		e.linkMode = orphan
+		e.linkState = orphanedLink
 	}
 	e.linkTarget, _ = os.Readlink(path)
 
 	return e, nil
-}
-
-// sortBy controls the primary sort key.
-type sortBy int
-
-const (
-	name sortBy = iota
-	extension
-	size
-	mtime
-	git
-	// TODO: Natural sorting
-)
-
-// Set implements the [flag.Value] interface.
-func (s *sortBy) Set(val string) error {
-	switch val {
-	case "name":
-		*s = name
-	case "ext", "extension":
-		*s = extension
-	case "size":
-		*s = size
-	case "time", "mtime":
-		*s = mtime
-	case "git":
-		*s = git
-	default:
-		return errors.New("must be name, extension, size, time, or git")
-	}
-	return nil
-}
-
-// String implements the [flag.Value] interface.
-func (s sortBy) String() string {
-	switch s {
-	case name:
-		return "name"
-	case extension:
-		return "extension"
-	case size:
-		return "size"
-	case mtime:
-		return "time"
-	case git:
-		return "git"
-	default:
-		return ""
-	}
 }
 
 var (
@@ -260,7 +210,7 @@ func sortEntries(ents []entry) {
 			}
 			return a.info.ModTime().Compare(b.info.ModTime())
 		})
-	case git:
+	case gitStatus:
 		slices.SortStableFunc(ents, func(a, b entry) int {
 			if opt.reverse {
 				return strings.Compare(b.gitStatus, a.gitStatus)

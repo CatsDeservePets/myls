@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -45,6 +46,55 @@ environment:
   LS_COLORS     used to specify the colours for file types and file names
   NO_COLOR      if set to a non-empty value, disables coloured output`
 
+// A sortKey specifies the primary attribute used to order entries.
+type sortKey byte
+
+const (
+	name sortKey = iota
+	extension
+	size
+	mtime
+	gitStatus
+	// TODO: Natural sorting
+)
+
+// Set implements the [flag.Value] interface.
+func (s *sortKey) Set(value string) error {
+	switch value {
+	case "name":
+		*s = name
+	case "ext", "extension":
+		*s = extension
+	case "size":
+		*s = size
+	case "time", "mtime":
+		*s = mtime
+	case "git":
+		*s = gitStatus
+	default:
+		return errors.New("must be name, extension, size, time, or git")
+	}
+	return nil
+}
+
+// String implements the [flag.Value] interface.
+func (s sortKey) String() string {
+	switch s {
+	case name:
+		return "name"
+	case extension:
+		return "extension"
+	case size:
+		return "size"
+	case mtime:
+		return "time"
+	case gitStatus:
+		return "git"
+	default:
+		return fmt.Sprintf("sortKey(%d)", s)
+	}
+}
+
 // options represents the program's runtime configuration.
 type options struct {
 	help      bool     // -h, -help
@@ -56,7 +106,7 @@ type options struct {
 	oneEntry  bool     // -1
 	dirsFirst bool     // -dirsfirst
 	git       bool     // -git
-	sort      sortBy   // -sort
+	sort      sortKey  // -sort
 	args      []string // non-flag command-line arguments
 
 	timeFmtOld string
