@@ -158,7 +158,7 @@ type options struct {
 
 var opt options
 
-// initOptions initializes opt from environment variables and command-line flags.
+// initOptions initialises opt from environment variables and command-line flags.
 // It also handles -h/-help and -V/-version by printing a message and exiting.
 func initOptions() {
 	opt.timeFmtOld = cmp.Or(os.Getenv("MYLS_TIMEFMT_OLD"), "Jan _2  2006")
