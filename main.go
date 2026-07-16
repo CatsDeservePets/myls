@@ -81,7 +81,7 @@ var (
 
 func main() {
 	initOptions()
-	initColors()
+	initColors(opt.color)
 
 	files, dirs := collectEntries(opt.args)
 	if len(dirs) == 0 && len(files) == 0 {

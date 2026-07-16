@@ -15,8 +15,8 @@ import (
 )
 
 // usageLine is the synopsis printed on flag parse errors.
-const usageLine = `usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
-            [-sort WORD] [file ...]`
+const usageLine = `usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-color WHEN]
+            [-dirsfirst] [-git] [-sort WORD] [file ...]`
 
 // helpMessage is the full help text printed for -h/-help.
 const helpMessage = `
@@ -33,6 +33,7 @@ options:
   -l            use a long listing format
   -r            reverse order while sorting
   -1            display one entry per line
+  -color WHEN   one of: always, auto, never (default: auto)
   -dirsfirst    show directories above regular files
   -git          display git status
   -sort WORD    one of: name, extension, size, time, git (default: name)
@@ -44,7 +45,8 @@ environment:
                 if set to a true boolean value, enables -dirsfirst by default
   MYLS_GIT      if set to a true boolean value, enables -git by default
   LS_COLORS     used to specify the colours for file types and file names
-  NO_COLOR      if set to a non-empty value, disables coloured output`
+  NO_COLOR      if set to a non-empty value, disables coloured output by
+                default; -color takes precedence`
 
 // A sortKey specifies the primary attribute used to order entries.
 type sortKey byte
@@ -95,19 +97,59 @@ func (s sortKey) String() string {
 	}
 }
 
+// A colorMode specifies when coloured output is used.
+type colorMode byte
+
+const (
+	colorAuto colorMode = iota
+	colorAlways
+	colorNever
+)
+
+// Set implements the [flag.Value] interface.
+func (m *colorMode) Set(value string) error {
+	// Secretly accept GNU aliases.
+	switch value {
+	case "always", "yes", "force":
+		*m = colorAlways
+	case "auto", "tty", "if-tty":
+		*m = colorAuto
+	case "never", "no", "none":
+		*m = colorNever
+	default:
+		return errors.New("must be always, auto, or never")
+	}
+	return nil
+}
+
+// String implements the [flag.Value] interface.
+func (m colorMode) String() string {
+	switch m {
+	case colorAlways:
+		return "always"
+	case colorAuto:
+		return "auto"
+	case colorNever:
+		return "never"
+	default:
+		return fmt.Sprintf("colorMode(%d)", m)
+	}
+}
+
 // options represents the program's runtime configuration.
 type options struct {
-	help      bool     // -h, -help
-	version   bool     // -V, -version
-	all       bool     // -a
-	dir       bool     // -d
-	long      bool     // -l
-	reverse   bool     // -r
-	oneEntry  bool     // -1
-	dirsFirst bool     // -dirsfirst
-	git       bool     // -git
-	sort      sortKey  // -sort
-	args      []string // non-flag command-line arguments
+	help      bool      // -h, -help
+	version   bool      // -V, -version
+	all       bool      // -a
+	dir       bool      // -d
+	long      bool      // -l
+	reverse   bool      // -r
+	oneEntry  bool      // -1
+	color     colorMode // -color
+	dirsFirst bool      // -dirsfirst
+	git       bool      // -git
+	sort      sortKey   // -sort
+	args      []string  // non-flag command-line arguments
 
 	timeFmtOld string
 	timeFmtNew string
@@ -123,6 +165,9 @@ func initOptions() {
 	opt.timeFmtNew = cmp.Or(os.Getenv("MYLS_TIMEFMT_NEW"), "Jan _2 15:04")
 	opt.dirsFirst, _ = strconv.ParseBool(os.Getenv("MYLS_DIRS_FIRST"))
 	opt.git, _ = strconv.ParseBool(os.Getenv("MYLS_GIT"))
+	if os.Getenv("NO_COLOR") != "" {
+		opt.color = colorNever // Otherwise, auto.
+	}
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	opt.termWidth = cmp.Or(width, 80) // Fallback for non-terminal output etc.
 
@@ -137,6 +182,8 @@ func initOptions() {
 	flag.BoolVar(&opt.oneEntry, "1", false, "")
 	flag.BoolVar(&opt.dirsFirst, "dirsfirst", opt.dirsFirst, "")
 	flag.BoolVar(&opt.git, "git", opt.git, "")
+	flag.Var(&opt.color, "color", "")
+	flag.Var(&opt.color, "colour", "")
 	flag.Var(&opt.sort, "sort", "")
 
 	// If flag parsing fails, print the usage synopsis to stderr.

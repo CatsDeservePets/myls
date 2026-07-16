@@ -18,7 +18,7 @@ See [Usage](#usage) for the full list of command-line options.
 * [x] `Git` integration
 * [x] Abbreviate home directory with `~` in output
 * [x] Shell completions
-* [x] Coloured output via `$LS_COLORS` (always on, overridden by `$NO_COLOR`)
+* [x] Coloured output via `$LS_COLORS`
 
 ### Planned
 
@@ -36,8 +36,8 @@ go install github.com/CatsDeservePets/myls@latest
 ## Usage
 
 ```
-usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-dirsfirst] [-git]
-            [-sort WORD] [file ...]
+usage: myls [-h] [-V] [-a] [-d] [-l] [-r] [-1] [-color WHEN]
+            [-dirsfirst] [-git] [-sort WORD] [file ...]
 
 positional arguments:
   file          files or directories to display
@@ -50,6 +50,7 @@ options:
   -l            use a long listing format
   -r            reverse order while sorting
   -1            display one entry per line
+  -color WHEN   one of: always, auto, never (default: auto)
   -dirsfirst    show directories above regular files
   -git          display git status
   -sort WORD    one of: name, extension, size, time, git (default: name)
@@ -61,7 +62,8 @@ environment:
                 if set to a true boolean value, enables -dirsfirst by default
   MYLS_GIT      if set to a true boolean value, enables -git by default
   LS_COLORS     used to specify the colours for file types and file names
-  NO_COLOR      if set to a non-empty value, disables coloured output
+  NO_COLOR      if set to a non-empty value, disables coloured output by
+                default; -color takes precedence
 ```
 
 ## Example output

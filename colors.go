@@ -80,10 +80,18 @@ func (c *colorConfig) applyLSCOLORS(s string) {
 }
 
 // initColors initialises the colour configuration from environment variables.
-func initColors() {
-	if os.Getenv("NO_COLOR") != "" || !term.IsTerminal(int(os.Stdout.Fd())) {
+func initColors(mode colorMode) {
+	var enabled bool
+	switch mode {
+	case colorAlways:
+		enabled = true
+	case colorAuto:
+		enabled = term.IsTerminal(int(os.Stdout.Fd()))
+	}
+	if !enabled {
 		return
 	}
+
 	if v := os.Getenv("LS_COLORS"); v != "" {
 		colors.enabled = true
 		colors.applyLSCOLORS(v)
