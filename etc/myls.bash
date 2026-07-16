@@ -14,12 +14,15 @@ _myls() {
 		-l
 		-r
 		-1
+		-color
 		-dirsfirst
 		-git
 		-sort
 	)
 
-	if [[ "$prev" == "-sort" ]]; then
+	if [[ "$prev" == "-color" ]]; then
+		COMPREPLY=($(compgen -W "always auto never" -- "$cur"))
+	elif [[ "$prev" == "-sort" ]]; then
 		COMPREPLY=($(compgen -W "name extension size time git" -- "$cur"))
 	elif [[ "$cur" == -* ]]; then
 		COMPREPLY=($(compgen -W "${opts[*]}" -- "$cur"))

@@ -7,7 +7,10 @@ using namespace System.Management.Automation
 Register-ArgumentCompleter -Native -CommandName 'myls' -ScriptBlock {
 	param($wordToComplete, $commandAst, $cursorPosition)
 
-	$sortValues = @('name', 'extension', 'size', 'time', 'git')
+	$valuesByOption = @{
+		'-color' = @('always', 'auto', 'never')
+		'-sort'  = @('name', 'extension', 'size', 'time', 'git')
+	}
 
 	$completions = @(
 		[CompletionResult]::new('-h',         '-h',         [CompletionResultType]::ParameterName, 'show help message and exit')
@@ -19,6 +22,7 @@ Register-ArgumentCompleter -Native -CommandName 'myls' -ScriptBlock {
 		[CompletionResult]::new('-l',         '-l',         [CompletionResultType]::ParameterName, 'use a long listing format')
 		[CompletionResult]::new('-r',         '-r',         [CompletionResultType]::ParameterName, 'reverse order while sorting')
 		[CompletionResult]::new('-1',         '-1',         [CompletionResultType]::ParameterName, 'display one entry per line')
+		[CompletionResult]::new('-color ',    '-color',     [CompletionResultType]::ParameterName, 'one of: always, auto, never (default: auto)')
 		[CompletionResult]::new('-dirsfirst', '-dirsfirst', [CompletionResultType]::ParameterName, 'show directories above regular files')
 		[CompletionResult]::new('-git',       '-git',       [CompletionResultType]::ParameterName, 'display git status')
 		[CompletionResult]::new('-sort ',     '-sort',      [CompletionResultType]::ParameterName, 'one of: name, extension, size, time, git (default: name)')
@@ -34,10 +38,9 @@ Register-ArgumentCompleter -Native -CommandName 'myls' -ScriptBlock {
 		Where-Object { $_.Extent.EndOffset -lt $cursorPosition } |
 		Select-Object -Last 1
 
-	if ($previousElement.Extent.Text -eq '-sort') {
-		$sortValues.Where{ $_ -like "$wordToComplete*" } |
-			ForEach-Object {
-				[CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
-			}
-	}
+	$valuesByOption[$previousElement.Extent.Text] |
+		Where-Object { $_ -like "$wordToComplete*" } |
+		ForEach-Object {
+			[CompletionResult]::new($_, $_, [CompletionResultType]::ParameterValue, $_)
+		}
 }

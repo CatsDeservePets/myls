@@ -12,6 +12,7 @@ _arguments -s \
 	'-l[use a long listing format]' \
 	'-r[reverse order while sorting]' \
 	'-1[display one entry per line]' \
+	'-color[one of: always, auto, never (default: auto)]:color:(always auto never)' \
 	'-dirsfirst[show directories above regular files]' \
 	'-git[display git status]' \
 	'-sort[one of: name, extension, size, time, git (default: name)]:sort:(name extension size time git)' \
